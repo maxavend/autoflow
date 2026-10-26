@@ -1,0 +1,182 @@
+// Figma side of a connector: a native CONNECTOR node. Figma keeps it attached
+// to its endpoints (also with the plugin closed); we read and write its
+// endpoints, style and label.
+
+import {
+  hexToRgb, KEY, normalizeStyle, NS, rgbToHex, SEED,
+  type ConnectorView, type Endpoint, type Kind, type Patch, type Style,
+} from './model.ts';
+import {
+  CAP_TO_FIGMA, capFromFigma, dashFromPattern, dashPattern, endpointSpec, KIND_TO_FIGMA, kindFromFigma, sideOf,
+} from './plan.ts';
+
+export const isConnector = (n: BaseNode | null): n is ConnectorNode => !!n && n.type === 'CONNECTOR';
+export const isSeed = (n: BaseNode): n is ConnectorNode => isConnector(n) && n.getSharedPluginData(NS, SEED) !== '';
+
+export function pageOf(n: BaseNode): PageNode | null {
+  let cur: BaseNode | null = n;
+  while (cur && cur.type !== 'PAGE') cur = cur.parent;
+  return cur as PageNode | null;
+}
+
+function ancestors(n: BaseNode): BaseNode[] {
+  const out: BaseNode[] = [];
+  for (let cur = n.parent; cur; cur = cur.parent) out.push(cur);
+  return out;
+}
+
+// Deepest section shared by both ends, else the page. Connectors never go
+// inside frames, so designs are not touched.
+export function containerFor(a: SceneNode | null, b: SceneNode | null): PageNode | SectionNode {
+  if (a && b) {
+    const bAnc = new Set(ancestors(b).map((n) => n.id));
+    for (const n of ancestors(a)) {
+      if (n.type === 'SECTION' && bAnc.has(n.id)) return n;
+      if (n.type === 'PAGE') break;
+    }
+  }
+  return figma.currentPage;
+}
+
+// Top-level frame a node lives in (prototype destinations must be top-level).
+export function screenOf(n: SceneNode): SceneNode {
+  let cur: SceneNode = n;
+  while (cur.parent && cur.parent.type !== 'PAGE' && cur.parent.type !== 'SECTION') cur = cur.parent as SceneNode;
+  return cur;
+}
+
+const size = (n: BaseNode | null) => (n && 'width' in n ? { w: n.width, h: n.height } : { w: 0, h: 0 });
+
+// ------------------------------------------------------------------- reading
+
+type FigmaEnd = ConnectorEndpoint & { endpointNodeId?: string; magnet?: string; position?: { x: number; y: number } };
+
+async function readEnd(ep: FigmaEnd): Promise<Endpoint> {
+  const id = ep.endpointNodeId || '';
+  if (!id) return { id: '', side: 'auto', t: 0.5 };
+  const n = await figma.getNodeByIdAsync(id);
+  const { w, h } = size(n);
+  return { id, ...sideOf(ep, w, h) };
+}
+
+function solidHex(paints: ReadonlyArray<Paint> | PluginAPI['mixed'], d: string): { hex: string; opacity: number } {
+  const p = Array.isArray(paints) ? (paints as Paint[]).find((x) => x.type === 'SOLID' && x.visible !== false) as SolidPaint | undefined : undefined;
+  return p ? { hex: rgbToHex(p.color), opacity: p.opacity ?? 1 } : { hex: d, opacity: 1 };
+}
+
+export async function readView(c: ConnectorNode): Promise<ConnectorView> {
+  const stroke = solidHex(c.strokes, '#1e1e1e');
+  const text = c.text;
+  const fontName = text.fontName;
+  const fontSize = text.fontSize;
+  const style = normalizeStyle({
+    color: stroke.hex,
+    opacity: stroke.opacity,
+    weight: typeof c.strokeWeight === 'number' ? c.strokeWeight : undefined,
+    dash: dashFromPattern(c.dashPattern),
+    startCap: capFromFigma(c.connectorStartStrokeCap),
+    endCap: capFromFigma(c.connectorEndStrokeCap),
+    radius: c.cornerRadius,
+    labelColor: solidHex(text.fills, '#1e1e1e').hex,
+    labelSize: typeof fontSize === 'number' ? fontSize : undefined,
+    labelFont: fontName !== figma.mixed && fontName.family ? { family: fontName.family, style: fontName.style } : undefined,
+  });
+  const from = await readEnd(c.connectorStart as FigmaEnd);
+  const to = await readEnd(c.connectorEnd as FigmaEnd);
+  return { from, to, kind: kindFromFigma(c.connectorLineType), style, label: text.characters, broken: isBroken(c) };
+}
+
+// Created attached (we stored both ids) but an end has lost its element.
+export function isBroken(c: ConnectorNode): boolean {
+  if (!c.getSharedPluginData(NS, KEY)) return false;
+  const s = c.connectorStart as FigmaEnd;
+  const e = c.connectorEnd as FigmaEnd;
+  return !s.endpointNodeId || !e.endpointNodeId;
+}
+
+// ------------------------------------------------------------------- writing
+
+async function loadFont(f: FontName): Promise<FontName> {
+  try {
+    await figma.loadFontAsync(f);
+    return f;
+  } catch {
+    const fallback = { family: 'Inter', style: 'Regular' };
+    await figma.loadFontAsync(fallback);
+    return fallback;
+  }
+}
+
+export function applyStyle(c: ConnectorNode, s: Style) {
+  c.strokes = [{ type: 'SOLID', color: hexToRgb(s.color), opacity: s.opacity }];
+  c.strokeWeight = s.weight;
+  c.dashPattern = dashPattern(s.dash, s.weight);
+  c.connectorStartStrokeCap = CAP_TO_FIGMA[s.startCap];
+  c.connectorEndStrokeCap = CAP_TO_FIGMA[s.endCap];
+  // Typed read-only, but writable on connectors.
+  (c as { cornerRadius?: number }).cornerRadius = s.radius;
+}
+
+export async function applyLabel(c: ConnectorNode, label: string, s: Style) {
+  const text = c.text;
+  if (!label && !text.characters) return;
+  const current = text.fontName;
+  if (current !== figma.mixed && current.family) await loadFont(current);
+  const font = await loadFont(s.labelFont);
+  text.fontName = font;
+  text.characters = label;
+  if (label) {
+    text.fontSize = s.labelSize;
+    text.fills = [{ type: 'SOLID', color: hexToRgb(s.labelColor) }];
+  }
+}
+
+export function applyKind(c: ConnectorNode, k: Kind) {
+  c.connectorLineType = KIND_TO_FIGMA[k];
+}
+
+export async function setEnd(c: ConnectorNode, which: 'from' | 'to', end: Endpoint) {
+  if (!end.id) return;
+  const n = await figma.getNodeByIdAsync(end.id);
+  if (!n) return;
+  const { w, h } = size(n);
+  const spec = endpointSpec(end.id, end.side, end.t, w, h);
+  if (which === 'from') c.connectorStart = spec;
+  else c.connectorEnd = spec;
+}
+
+// Remember the ids we attached, to tell a detached connector apart from a
+// free one the user drew on purpose.
+export function remember(c: ConnectorNode, from: string, to: string) {
+  c.setSharedPluginData(NS, KEY, from && to ? JSON.stringify({ from, to }) : '');
+  c.setSharedPluginData(NS, SEED, '');
+}
+
+export async function applyPatch(c: ConnectorNode, p: Patch) {
+  const v = await readView(c);
+  const style = normalizeStyle({ ...v.style, ...(p.style || {}) });
+  if (p.kind) applyKind(c, p.kind);
+  if (p.style) applyStyle(c, style);
+  if (p.label !== undefined || (p.style && v.label)) await applyLabel(c, p.label ?? v.label, style);
+  if (p.fromSide !== undefined || p.fromT !== undefined) {
+    await setEnd(c, 'from', { ...v.from, side: p.fromSide ?? v.from.side, t: p.fromT ?? v.from.t });
+  }
+  if (p.toSide !== undefined || p.toT !== undefined) {
+    await setEnd(c, 'to', { ...v.to, side: p.toSide ?? v.to.side, t: p.toT ?? v.to.t });
+  }
+}
+
+export function swapEnds(c: ConnectorNode) {
+  const s = c.connectorStart;
+  c.connectorStart = c.connectorEnd;
+  c.connectorEnd = s;
+  const raw = c.getSharedPluginData(NS, KEY);
+  if (raw) {
+    try {
+      const d = JSON.parse(raw) as { from: string; to: string };
+      c.setSharedPluginData(NS, KEY, JSON.stringify({ from: d.to, to: d.from }));
+    } catch {
+      // Unreadable record: leave it, it only feeds the detached check.
+    }
+  }
+}

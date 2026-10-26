@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Autoflow UI harness</title>
+<style>
+  html, body { margin: 0; background: #888; }
+  iframe { display: block; width: 320px; height: 900px; border: 0; }
+</style>
+</head>
+<body>
+<!-- Loads the built panel the way Figma does (an iframe whose parent is the
+     plugin) and plays the plugin side with fixtures. Query params:
+     ?theme=dark|light  ?scenario=defaults|connector|nolabel|nodes|one|two|multi  &presets
+     ?open=advanced,menu:color|menu:weight|menu:startCap|menu:kind|menu:endCap,family,style,color
+     (comma-separated: expands options, opens a toolbar picker / select / the fill picker)
+     The iframe grows to the height the panel reports (#height has it). -->
+<iframe id="ui" src="../../dist/ui.html" title="Autoflow"></iframe>
+<pre id="height" hidden></pre>
+<script>
+const params = new URLSearchParams(location.search);
+const theme = params.get('theme') || 'dark';
+const scenario = params.get('scenario') || 'connector';
+const frame = document.getElementById('ui');
+window.log = [];
+
+const style = { color: '#0d99ff', opacity: 1, weight: 2, dash: 'solid', startCap: 'none', endCap: 'arrow', radius: 12, labelColor: '#1e1e1e', labelSize: 12, labelFont: { family: 'Inter', style: 'Medium' } };
+const connector = (id, extra = {}) => ({
+  id, fromName: 'Button / Primary', toName: 'Sign up',
+  data: { from: { id: '2:14', side: 'auto', t: 0.5 }, to: { id: '2:7', side: 'left', t: 0.3 }, kind: 'elbow', style: JSON.parse(JSON.stringify(style)), label: 'Continuar', broken: false, ...extra },
+});
+const SCENARIOS = {
+  defaults: { nodes: [], connectors: [] },
+  one: { nodes: [{ id: '2:5', name: 'Welcome', type: 'FRAME' }], connectors: [] },
+  two: { nodes: [{ id: '2:5', name: 'Welcome', type: 'FRAME' }, { id: '2:7', name: 'Sign up', type: 'FRAME' }], connectors: [] },
+  nodes: { nodes: [{ id: '2:5', name: 'Welcome', type: 'FRAME' }, { id: '2:14', name: 'Button / Primary / <b>Large</b>', type: 'INSTANCE' }, { id: '2:7', name: 'Sign up', type: 'FRAME' }], connectors: [] },
+  connector: { nodes: [], connectors: [connector('4:7')] },
+  nolabel: { nodes: [], connectors: [connector('4:7', { label: '' })] },
+  multi: { nodes: [], connectors: [connector('4:7'), connector('4:11')] },
+};
+window.state = { type: 'state', presets: params.has('presets') ? [
+  { id: 'a', name: 'Flujo principal', kind: 'elbow', style: { ...style } },
+  { id: 'b', name: 'Error', kind: 'curve', style: { ...style, color: '#f24822', dash: 'dash' } },
+  { id: 'c', name: 'Alternativo', kind: 'straight', style: { ...style, color: '#757575', endCap: 'none' } },
+] : [], stats: { total: 6, broken: 1 }, defaults: { kind: 'elbow', style: JSON.parse(JSON.stringify(style)) }, ...SCENARIOS[scenario] };
+const FONTS = [
+  { family: 'Inter', styles: ['Thin', 'Light', 'Regular', 'Medium', 'Semi Bold', 'Bold', 'Extra Bold', 'Black'] },
+  { family: 'Roboto', styles: ['Regular', 'Medium', 'Bold'] },
+  { family: 'SF Pro', styles: ['Regular', 'Semibold', 'Bold'] },
+  { family: 'Space Mono', styles: ['Regular', 'Bold'] },
+];
+for (let i = 0; i < 400; i++) FONTS.push({ family: `Family ${String(i).padStart(3, '0')}`, styles: ['Regular', 'Bold'] });
+
+const toUI = (pluginMessage) => frame.contentWindow.postMessage({ pluginMessage }, '*');
+window.toUI = toUI;
+// Mock plugin: answer every request like src/code.ts does.
+window.failNext = null;
+window.addEventListener('message', (e) => {
+  const msg = e.data && e.data.pluginMessage;
+  if (!msg || e.source !== frame.contentWindow) return;
+  window.log.push(msg);
+  if (msg.type === 'resize') {
+    frame.style.height = `${msg.height}px`;
+    document.getElementById('height').textContent = String(msg.height);
+    return;
+  }
+  const delay = msg.type === 'import' ? 600 : 30;
+  setTimeout(() => {
+    if (msg.type === 'ready') { toUI({ type: 'fonts', fonts: FONTS }); toUI(window.state); }
+    const fail = window.failNext === msg.type;
+    if (fail) window.failNext = null;
+    toUI({ type: 'result', requestId: msg.requestId ?? null, action: msg.type, ok: !fail, message: fail ? 'Error simulado' : `${msg.type} ok` });
+  }, delay);
+});
+frame.addEventListener('load', () => {
+  frame.contentDocument.documentElement.classList.add(theme === 'light' ? 'figma-light' : 'figma-dark');
+  const opens = (params.get('open') || '').split(',').filter(Boolean);
+  if (!opens.length) return;
+  setTimeout(() => {
+    const d = frame.contentDocument;
+    const w = frame.contentWindow;
+    for (const open of opens) {
+      if (open === 'advanced') {
+        if (d.getElementById('advanced').hidden) d.getElementById('moreToggle').click();
+      } else if (open === 'color') {
+        // The picker is created on the first swatch press, then opened.
+        const host = d.querySelector('fig-input-color[data-key=color]');
+        const swatch = host.querySelector('fig-swatch input[type=color]');
+        swatch.dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true }));
+        swatch.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
+        setTimeout(() => { if (!d.querySelector('dialog[open]')) host.querySelector('fig-fill-picker')?.open(); }, 100);
+      } else if (open.startsWith('menu:')) {
+        d.querySelector(`.tool-wrap[data-picker="${open.slice(5)}"] fig-button`)?.click();
+      } else {
+        const sel = { family: '#fontFamily', style: '#fontStyle' }[open] || `[data-key=${open}]`;
+        d.querySelector(sel)?.setAttribute('open', '');
+      }
+    }
+    // Headless capture: measure directly too, in case ResizeObserver hasn't fired yet.
+    setTimeout(() => {
+      const h = d.getElementById('app').scrollHeight;
+      frame.style.height = `${h}px`;
+      document.getElementById('height').textContent = String(h);
+    }, 300);
+  }, 800);
+});
+</script>
+</body>
+</html>

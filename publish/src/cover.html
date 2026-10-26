@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- Figma Community cover (1920×1080). Render with `npm run listing`. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="listing.css">
+  <style>
+    .stage { display: grid; grid-template-columns: 780px 1fr; align-items: center; gap: 40px; }
+    .copyblock { display: flex; flex-direction: column; gap: 44px; }
+    .lead { max-width: 760px; }
+    .right { position: relative; height: 840px; }
+    .canvas { position: absolute; left: 0; top: 0; width: 820px; height: 720px; }
+    .panel { position: absolute; right: -40px; bottom: -10px; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="copyblock">
+      <div class="brand"><img src="../logo.svg" alt="">Autoflow</div>
+      <h1>Connectors that<br>stay <span class="accent">attached.</span></h1>
+      <p class="lead">Native FigJam arrows in Figma Design that stick to your screens and layers, even when you move them.</p>
+    </div>
+    <div class="right">
+      <div class="canvas"><svg id="scene" width="820" height="720"></svg></div>
+      <div class="panel" data-scenario="connector" data-scale="1.25" data-max="384" data-color="#F2462E"
+        data-state='{"stats":{"total":6,"broken":0}}'></div>
+    </div>
+  </div>
+  <script src="scene.js"></script>
+  <script>
+    const svg = document.getElementById('scene');
+    const a = phone(svg, 70, 110, { title: 'Welcome', button: 'iman', w: 220, h: 420 });
+    const b = phone(svg, 520, 90, { title: 'Sign up', w: 220, h: 420 });
+    const y1 = a.btn.y + 22, y2 = b.y + 120;
+    connector(svg, [[a.btn.x + a.btn.w, y1], [372, y1], [372, y2], [b.x, y2]], { label: 'Continue' });
+  </script>
+  <script src="panel.js"></script>
+</body>
+</html>

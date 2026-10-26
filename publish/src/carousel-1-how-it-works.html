@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- Figma Community carousel 1 (1920×1080): how it works. Render with `npm run listing`. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="listing.css">
+  <style>
+    .stage { display: grid; grid-template-columns: 960px 1fr; align-items: center; gap: 80px; }
+    h2 { margin-bottom: 72px; }
+    .panel { justify-self: end; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div>
+      <p class="kicker">How it works</p>
+      <h2>Three steps.<br><span class="quiet">One ⌘V per arrow.</span></h2>
+      <ol class="steps">
+        <li><b>1</b><span>Click the <strong>source</strong>, then <strong>Shift+click</strong> the <strong>target</strong>. <strong>⌘/Ctrl+click</strong> reaches nested buttons and layers.</span></li>
+        <li><b>2</b><span>Click <strong>Copy connector</strong>. It copies with the style and sides you pick in the panel.</span></li>
+        <li><b>3</b><span>Press <strong>⌘V</strong> on the canvas. The arrow sticks to both elements.</span></li>
+      </ol>
+    </div>
+    <div class="panel" data-scenario="two" data-scale="2" data-max="532" data-color="#F2462E"
+      data-state='{"stats":{"total":6,"broken":0}}'></div>
+  </div>
+  <script src="panel.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Figma Community carousel 4 (1920×1080): styles. Render with `npm run listing`. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="listing.css">
+  <style>
+    .stage { display: grid; grid-template-columns: 1fr 660px; align-items: center; gap: 80px; }
+    .lead { margin: 40px 0 56px; max-width: 900px; }
+    .canvas { height: 420px; }
+    .panel { justify-self: end; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div>
+      <p class="kicker">Styles</p>
+      <h2>All of FigJam’s styling,<br><span class="quiet">inside Figma Design.</span></h2>
+      <p class="lead">Color, weight, label, line, path and caps. Save your own styles and edit many connectors at once.</p>
+      <div class="canvas"><svg id="scene" width="1000" height="420"></svg></div>
+    </div>
+    <div class="panel" data-scenario="connector" data-presets data-scale="2" data-max="842" data-color="#F2462E"
+      data-state='{"stats":{"total":6,"broken":0},"presets":[{"id":"a","name":"Main flow","kind":"elbow","style":{"color":"#F2462E","opacity":1,"weight":2,"dash":"solid","startCap":"none","endCap":"arrow","radius":12,"labelColor":"#1e1e1e","labelSize":12,"labelFont":{"family":"Inter","style":"Medium"}}},{"id":"b","name":"Error","kind":"straight","style":{"color":"#15171C","opacity":1,"weight":2,"dash":"dash","startCap":"none","endCap":"arrow","radius":12,"labelColor":"#1e1e1e","labelSize":12,"labelFont":{"family":"Inter","style":"Medium"}}},{"id":"c","name":"Help","kind":"curve","style":{"color":"#0D99FF","opacity":1,"weight":2,"dash":"solid","startCap":"none","endCap":"arrow","radius":12,"labelColor":"#1e1e1e","labelSize":12,"labelFont":{"family":"Inter","style":"Medium"}}}]}'></div>
+  </div>
+  <script src="scene.js"></script>
+  <script>
+    const svg = document.getElementById('scene');
+    const node = (x, y, t) => {
+      el(svg, 'rect', { x, y, width: 170, height: 96, rx: 16, fill: '#fff', stroke: C.line, 'stroke-width': 2 });
+      el(svg, 'text', { x: x + 85, y: y + 57, 'text-anchor': 'middle', 'font-size': 24, 'font-weight': 600, fill: C.ink }, t);
+      return { x, y, r: x + 170, cy: y + 48, cx: x + 85, b: y + 96 };
+    };
+    const login = node(60, 162, 'Login');
+    const home = node(770, 30, 'Home');
+    const err = node(770, 162, 'Error');
+    const help = node(770, 294, 'Help');
+    connector(svg, [[login.r, login.cy - 22], [480, login.cy - 22], [480, home.cy], [home.x, home.cy]], { label: 'Sign in', start: false });
+    connector(svg, [[login.r, login.cy], [err.x, err.cy]], { kind: 'straight', color: C.ink, dash: '16 12', width: 5, start: false });
+    connector(svg, [[login.r, login.cy + 22], [help.x, help.cy]], { kind: 'curve', color: C.proto, width: 5, start: false });
+  </script>
+  <script src="panel.js"></script>
+</body>
+</html>

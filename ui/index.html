@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Autoflow</title>
+<script type="module" src="./main.js"></script>
+</head>
+<body>
+<main id="app">
+  <!-- Create: the route fills in as the user picks origin and target; the
+       action below always names the one thing left to do. -->
+  <section class="section" id="secTool" aria-labelledby="hTool">
+    <fig-header borderless>
+      <h3 id="hTool"></h3>
+      <fig-tooltip data-i18n-attr="text=reverse">
+        <fig-button variant="ghost" icon id="reverseBtn" data-i18n-attr="aria-label=reverse" disabled><span data-icon="swap"></span></fig-button>
+      </fig-tooltip>
+    </fig-header>
+
+    <!-- One or two elements: origin → target -->
+    <div class="route" id="route" role="group" data-i18n-attr="aria-label=route">
+      <div class="slot" id="slotFrom">
+        <span class="slot-label" data-i18n="source"></span>
+        <span class="slot-name" id="slotFromName"></span>
+        <span class="slot-port">
+          <fig-origin-grid class="port" data-port="planFrom" data-label="leaves" data-i18n-attr="aria-label=leaves" value="50% 50%" aspect-ratio="3 / 2"></fig-origin-grid>
+          <span class="port-caption" data-caption="planFrom" aria-hidden="true"></span>
+        </span>
+      </div>
+      <span class="route-arrow" data-icon="capArrow"></span>
+      <div class="slot" id="slotTo">
+        <span class="slot-label" data-i18n="target"></span>
+        <span class="slot-name" id="slotToName"></span>
+        <span class="slot-port">
+          <fig-origin-grid class="port" data-port="planTo" data-label="enters" data-i18n-attr="aria-label=enters" value="50% 50%" aspect-ratio="3 / 2"></fig-origin-grid>
+          <span class="port-caption" data-caption="planTo" aria-hidden="true"></span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Three or more: how to link them, and the list ⌘V will create -->
+    <div class="stack" id="many" hidden>
+      <fig-segmented-control id="linkMode" value="chain" full data-i18n-attr="aria-label=link.how">
+        <fig-segment value="chain" selected="true" data-i18n="link.chain"></fig-segment>
+        <fig-segment value="fan" data-i18n="link.fan"></fig-segment>
+      </fig-segmented-control>
+      <ul class="links" id="linkList" data-i18n-attr="aria-label=links"></ul>
+    </div>
+
+    <!-- Next action: copy the connector (styled as configured above and
+         below), then ⌘V on the canvas creates it. -->
+    <div class="next" id="next">
+      <div class="paste" id="pastePrompt" hidden>
+        <kbd class="kbd-large" data-paste-key>⌘V</kbd>
+        <span class="paste-text" id="pasteText"></span>
+      </div>
+      <fig-button variant="primary" id="copyBtn" full></fig-button>
+      <p class="hint" id="nextHint" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- Connector(s) selected -->
+  <section class="section" id="secConn" aria-labelledby="connTitle" hidden>
+    <fig-header borderless>
+      <h3 id="connTitle"></h3>
+      <fig-tooltip data-i18n-attr="text=reverse">
+        <fig-button variant="ghost" icon id="swapBtn" data-i18n-attr="aria-label=reverse"><span data-icon="swap"></span></fig-button>
+      </fig-tooltip>
+      <fig-menu id="connMenu" position="bottom right">
+        <fig-button fig-menu-trigger variant="ghost" icon data-i18n-attr="aria-label=moreActions"><span data-icon="more"></span></fig-button>
+        <fig-menu-item value="prototype" data-i18n="menu.prototype"></fig-menu-item>
+        <fig-menu-item value="defaults-from" data-i18n="menu.defaultsFrom"></fig-menu-item>
+        <fig-separator></fig-separator>
+        <fig-menu-item value="delete" data-i18n="menu.delete"></fig-menu-item>
+      </fig-menu>
+    </fig-header>
+    <!-- Same card as when creating: names select the element on the canvas -->
+    <div class="route" role="group" data-i18n-attr="aria-label=ends">
+      <div class="slot" id="connFrom">
+        <span class="slot-label" data-i18n="source"></span>
+        <button type="button" class="slot-name slot-link" id="selFrom" data-i18n-attr="title=selectOnCanvas"><span id="fromName"></span></button>
+        <span class="slot-port">
+          <fig-origin-grid class="port" data-port="fromSide" data-label="leaves" data-i18n-attr="aria-label=leaves" value="50% 50%" aspect-ratio="3 / 2"></fig-origin-grid>
+          <span class="port-caption" data-caption="fromSide" aria-hidden="true"></span>
+        </span>
+      </div>
+      <span class="route-arrow" data-icon="capArrow"></span>
+      <div class="slot" id="connTo">
+        <span class="slot-label" data-i18n="target"></span>
+        <button type="button" class="slot-name slot-link" id="selTo" data-i18n-attr="title=selectOnCanvas"><span id="toName"></span></button>
+        <span class="slot-port">
+          <fig-origin-grid class="port" data-port="toSide" data-label="enters" data-i18n-attr="aria-label=enters" value="50% 50%" aspect-ratio="3 / 2"></fig-origin-grid>
+          <span class="port-caption" data-caption="toSide" aria-hidden="true"></span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Style: FigJam-like toolbar + optional advanced options -->
+  <section class="section" id="secStyle" aria-labelledby="styleTitle">
+    <fig-header borderless>
+      <h3 id="styleTitle"></h3>
+      <fig-button variant="ghost" id="resetDefaults" data-i18n="reset"></fig-button>
+    </fig-header>
+
+    <!-- FigUI3 toolbelt: each item opens its icon picker (a fig-popup); the
+         item stays selected while its picker is open. -->
+    <fig-toolbelt class="toolbar" id="toolbar" data-i18n-attr="aria-label=toolbar">
+      <fig-toolbelt-group data-i18n-attr="aria-label=group.colorStroke">
+        <fig-toolbelt-item class="tool" value="color" data-picker="color" aria-haspopup="dialog" aria-expanded="false" data-i18n-attr="aria-label=tool.color">
+          <span class="tool-swatch" id="colorDot" aria-hidden="true"></span><span class="tool-chevron" data-icon="chevron"></span>
+        </fig-toolbelt-item>
+        <fig-toolbelt-item class="tool" value="weight" data-picker="weight" aria-haspopup="dialog" aria-expanded="false" data-i18n-attr="aria-label=tool.stroke">
+          <span data-icon="strokeWeight"></span><span class="tool-chevron" data-icon="chevron"></span>
+        </fig-toolbelt-item>
+      </fig-toolbelt-group>
+      <fig-toolbelt-group data-i18n-attr="aria-label=group.label" data-conn-only>
+        <fig-toolbelt-item class="tool" value="text" id="textTool" data-i18n-attr="aria-label=tool.label"><span data-icon="text"></span></fig-toolbelt-item>
+      </fig-toolbelt-group>
+      <fig-toolbelt-group data-i18n-attr="aria-label=group.ends">
+        <fig-toolbelt-item class="tool" value="startCap" data-picker="startCap" aria-haspopup="dialog" aria-expanded="false" data-i18n-attr="aria-label=tool.start">
+          <span class="tool-glyph" id="startGlyph"></span><span class="tool-chevron" data-icon="chevron"></span>
+        </fig-toolbelt-item>
+        <fig-toolbelt-item class="tool" value="kind" data-picker="kind" aria-haspopup="dialog" aria-expanded="false" data-i18n-attr="aria-label=tool.kind">
+          <span class="tool-glyph" id="kindGlyph"></span><span class="tool-chevron" data-icon="chevron"></span>
+        </fig-toolbelt-item>
+        <fig-toolbelt-item class="tool" value="endCap" data-picker="endCap" aria-haspopup="dialog" aria-expanded="false" data-i18n-attr="aria-label=tool.end">
+          <span class="tool-glyph is-end" id="endGlyph"></span><span class="tool-chevron" data-icon="chevron"></span>
+        </fig-toolbelt-item>
+      </fig-toolbelt-group>
+    </fig-toolbelt>
+
+    <!-- Saved styles: one click applies one, to new connectors or the selection -->
+    <div class="presets" id="presets">
+      <div class="presets-head">
+        <p class="subhead" id="presetsTitle" data-i18n="presets.title"></p>
+        <fig-button variant="ghost" id="presetAdd" data-i18n="presets.add"></fig-button>
+      </div>
+      <div class="preset-form" id="presetForm" hidden>
+        <fig-input-text id="presetName" data-i18n-attr="placeholder=presets.namePh,aria-label=presets.nameAria" full></fig-input-text>
+        <fig-button variant="primary" id="presetSave" data-i18n="save"></fig-button>
+        <fig-button variant="ghost" icon id="presetCancel" data-i18n-attr="aria-label=cancel"><span data-icon="minus"></span></fig-button>
+      </div>
+      <ul class="preset-list" id="presetList" aria-labelledby="presetsTitle"></ul>
+      <p class="hint" id="presetEmpty" data-i18n="presets.empty"></p>
+    </div>
+
+    <div class="label-row" id="labelRow" data-conn-only hidden>
+      <fig-input-text id="labelText" data-i18n-attr="aria-label=label.ph" full></fig-input-text>
+      <fig-button variant="ghost" icon id="labelRemove" data-i18n-attr="aria-label=label.remove"><span data-icon="minus"></span></fig-button>
+    </div>
+
+    <fig-button variant="ghost" id="moreToggle" class="disclosure" aria-expanded="false" aria-controls="advanced">
+      <span data-icon="adjust"></span><span data-i18n="more"></span><span class="disclosure-chevron" data-icon="chevron"></span>
+    </fig-button>
+
+    <!-- Compact rows like Figma's properties panel: up to three fields per
+         row, each named by its icon or prefix (and aria-label) instead of a
+         label column. -->
+    <div class="stack" id="advanced" hidden>
+      <p class="subhead" data-i18n="line"></p>
+      <div class="row3">
+        <fig-input-color data-key="color" text="true" alpha="false" data-i18n-attr="aria-label=line.color" full></fig-input-color>
+        <fig-input-number data-key="weight" min="0.5" max="24" step="0.5" data-i18n-attr="aria-label=line.weight" full>
+          <span slot="prepend" class="adorn" data-icon="strokeWeight"></span>
+        </fig-input-number>
+        <fig-input-number data-key="radius" min="0" max="200" step="1" data-i18n-attr="aria-label=line.radius" full data-only="elbow">
+          <span slot="prepend" class="adorn" data-icon="corners"></span>
+        </fig-input-number>
+      </div>
+
+      <div class="stack" data-conn-only>
+        <p class="subhead" id="anchorsHead" data-i18n="anchors"></p>
+        <div class="pair">
+          <label class="mini" data-tside="from">
+            <span class="mini-label" data-i18n="anchors.out"></span>
+            <fig-input-number data-key="fromT" min="0" max="100" step="1" units="%" data-i18n-attr="aria-label=anchors.outAria" full></fig-input-number>
+          </label>
+          <label class="mini" data-tside="to">
+            <span class="mini-label" data-i18n="anchors.in"></span>
+            <fig-input-number data-key="toT" min="0" max="100" step="1" units="%" data-i18n-attr="aria-label=anchors.inAria" full></fig-input-number>
+          </label>
+        </div>
+      </div>
+
+      <div class="stack" id="labelStyle">
+        <p class="subhead" data-i18n="label.section"></p>
+        <fig-select variant="input" full id="fontFamily" data-i18n-attr="label=font.family"></fig-select>
+        <div class="row3">
+          <fig-select variant="input" full id="fontStyle" data-i18n-attr="label=font.style"></fig-select>
+          <fig-input-number data-key="labelSize" min="6" max="96" step="1" data-i18n-attr="aria-label=font.size" full>
+            <span slot="prepend" class="adorn" data-icon="fontSize"></span>
+          </fig-input-number>
+          <fig-input-color data-key="labelColor" text="true" alpha="false" data-i18n-attr="aria-label=text.color" full></fig-input-color>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Page-wide: count, connectors left loose, arrows from the prototype -->
+  <section class="section" id="secPage" aria-labelledby="hPage">
+    <fig-header borderless>
+      <h3 id="hPage" data-i18n="page.title"></h3>
+      <span class="meta" id="count"></span>
+    </fig-header>
+    <div class="notice" id="brokenRow" role="status" hidden>
+      <span class="notice-icon" data-icon="warning"></span>
+      <p class="notice-text" id="brokenText"></p>
+      <fig-button variant="ghost" id="showBroken" data-i18n="show"></fig-button>
+      <fig-button variant="ghost" id="cleanBtn" data-i18n="delete"></fig-button>
+    </div>
+    <p class="hint" id="pageEmpty" hidden data-i18n="page.ok"></p>
+  </section>
+</main>
+
+<p class="sr-only" id="status" role="status" aria-live="polite"></p>
+<dialog is="fig-toast" id="toast" theme="dark" duration="2200" offset="12"></dialog>
+</body>
+</html>

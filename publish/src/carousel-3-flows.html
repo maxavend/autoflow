@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- Figma Community carousel 3 (1920×1080): flows of three or more. Render with `npm run listing`. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="listing.css">
+  <style>
+    .stage { display: grid; grid-template-columns: 1020px 1fr; align-items: center; gap: 60px; }
+    .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 64px; }
+    .mode { display: flex; flex-direction: column; gap: 18px; }
+    .mode span { font-size: 26px; font-weight: 650; }
+    .mode em { font-style: normal; font-size: 22px; color: var(--text-2); }
+    .canvas { height: 300px; }
+    .panel { justify-self: end; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div>
+      <p class="kicker">Flows of 3 or more</p>
+      <h2>Select several.<br><span class="quiet">Link them in one go.</span></h2>
+      <div class="modes">
+        <div class="mode"><div class="canvas"><svg id="chain" width="496" height="300"></svg></div>
+          <span>One after another</span><em>A → B → C, in the order you clicked.</em></div>
+        <div class="mode"><div class="canvas"><svg id="fan" width="496" height="300"></svg></div>
+          <span>All from the first</span><em>A → B and A → C, like a menu.</em></div>
+      </div>
+    </div>
+    <div class="panel" data-scenario="nodes" data-scale="2" data-max="560" data-color="#F2462E"
+      data-state='{"stats":{"total":6,"broken":0},"nodes":[{"id":"2:5","name":"Home","type":"FRAME"},{"id":"2:7","name":"Catalog","type":"FRAME"},{"id":"2:9","name":"Details","type":"FRAME"}]}'></div>
+  </div>
+  <script src="scene.js"></script>
+  <script>
+    const box = (svg, x, y, t, h = 150) => {
+      el(svg, 'rect', { x, y, width: 110, height: h, rx: 16, fill: '#fff', stroke: C.line, 'stroke-width': 2 });
+      el(svg, 'text', { x: x + 55, y: y + h / 2 + 11, 'text-anchor': 'middle', 'font-size': 30, 'font-weight': 650, fill: C.ink }, t);
+      return { x, y, r: x + 110, cy: y + h / 2, cx: x + 55, b: y + h };
+    };
+    const chain = document.getElementById('chain');
+    const a = box(chain, 30, 75, 'A'), b = box(chain, 193, 75, 'B'), c = box(chain, 356, 75, 'C');
+    connector(chain, [[a.r, a.cy], [b.x, b.cy]], { kind: 'straight', width: 5 });
+    connector(chain, [[b.r, b.cy], [c.x, c.cy]], { kind: 'straight', width: 5 });
+
+    const fan = document.getElementById('fan');
+    const f = box(fan, 40, 75, 'A'), g = box(fan, 340, 24, 'B', 116), h = box(fan, 340, 160, 'C', 116);
+    connector(fan, [[f.r, f.cy - 25], [235, f.cy - 25], [235, g.cy], [g.x, g.cy]], { width: 5, start: true });
+    connector(fan, [[f.r, f.cy + 25], [235, f.cy + 25], [235, h.cy], [h.x, h.cy]], { width: 5, start: true });
+  </script>
+  <script src="panel.js"></script>
+</body>
+</html>

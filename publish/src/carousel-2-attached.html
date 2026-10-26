@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- Figma Community carousel 2 (1920×1080): connectors stay attached. Render with `npm run listing`. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="listing.css">
+  <style>
+    .stage { display: grid; grid-template-columns: 700px 1fr; align-items: center; gap: 80px; }
+    .lead { margin-top: 48px; }
+    .canvas { width: 960px; height: 840px; }
+      </style>
+</head>
+<body>
+  <div class="stage">
+    <div>
+      <p class="kicker">Always attached</p>
+      <h2>Move the screen.<br><span class="quiet">The arrow follows.</span></h2>
+      <p class="lead">They are native FigJam connectors: Figma keeps them attached to their elements, even with the plugin closed.</p>
+    </div>
+    <div class="canvas"><svg id="scene" width="960" height="840"></svg></div>
+  </div>
+  <script src="scene.js"></script>
+  <script>
+    const svg = document.getElementById('scene');
+    const a = phone(svg, 70, 250, { title: 'Cart', button: 'iman', w: 220, h: 400 });
+    // where "Pago" was (dashed) and where it is after you move it
+    const old = phone(svg, 440, 480, { title: 'Checkout, before', w: 200, h: 320, ghost: true });
+    const b = phone(svg, 700, 90, { title: 'Checkout, now', w: 200, h: 320 });
+    const y1 = a.btn.y + 22;
+    connector(svg, [[a.btn.x + a.btn.w, y1], [360, y1], [360, old.y + 120], [old.x, old.y + 120]], { ghost: true, start: false });
+    connector(svg, [[a.btn.x + a.btn.w, y1], [410, y1], [410, b.y + 120], [b.x, b.y + 120]], { label: 'Pay' });
+    // the move: from the old place to the new one
+    connector(svg, [[old.r - 6, old.y + 6], [b.x + 30, b.b - 2]], { kind: 'straight', color: C.acero, width: 4, dash: '2 12', start: false });
+  </script>
+</body>
+</html>

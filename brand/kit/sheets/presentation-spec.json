@@ -1,0 +1,34 @@
+{
+  "brand": "Autoflow",
+  "tagline": "Conectores que no se sueltan",
+  "brief": "Plugin de Figma Design que crea conectores nativos de FigJam pegados a pantallas y capas: si mueves un elemento, la flecha lo sigue. Para diseñadores de producto que documentan flujos.",
+  "adjectives": ["confiable", "preciso", "nativo", "liviano"],
+  "criteria": "Éxito: se distingue entre los plugins azules y morados de Figma, se reconoce a 16 px, funciona a una tinta y dice 'lo que conectas, se queda conectado'.",
+  "mockups": ["website", "favicon-tab", "app-icon", "social", "sticker", "readme"],
+  "nav": ["Cómo funciona", "Community", "GitHub"],
+  "brand_color": "#F2462E",
+  "tile_color": "#15171C",
+  "greyscale": false,
+  "final": true,
+  "deck_title": "identidad final",
+  "designer": "Diseño Digital",
+  "concepts": [
+    {
+      "name": "Imán",
+      "symbol": "../logo/autoflow-symbol-color.svg",
+      "lockup": "../logo/autoflow-horizontal-color.svg",
+      "stacked": "../logo/autoflow-stacked-color.svg",
+      "symbol_on_tile": "../logo/autoflow-symbol-on-dark.svg",
+      "symbol_on_dark": "../logo/autoflow-symbol-on-dark.svg",
+      "lockup_on_dark": "../logo/autoflow-horizontal-on-dark.svg",
+      "stacked_on_dark": "../logo/autoflow-stacked-on-dark.svg",
+      "idea": "La A de Autoflow es un imán de herradura: el arco atrae, los polos sostienen.",
+      "rationale": [
+        "Usa el vocabulario del producto: Figma llama 'imanes' a los puntos donde se engancha un conector",
+        "Rojo imán: propio en una categoría de azules y morados",
+        "Retícula de 8, trazo S = 32, radios 2S / S y suavizado de 1 módulo; simétrico"
+      ]
+    }
+  ],
+  "recommendation": "Imán: una sola idea, legible a 16 px y con un color que nadie más tiene en la lista de plugins."
+}

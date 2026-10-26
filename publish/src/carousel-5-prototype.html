@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<!-- Figma Community carousel 5 (1920×1080): from connector to prototype. Render with `npm run listing`. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="listing.css">
+  <style>
+    .stage { display: flex; flex-direction: column; gap: 64px; padding-top: 110px; }
+    .head { display: grid; grid-template-columns: 1fr 760px; align-items: end; gap: 80px; }
+    .pair { display: grid; grid-template-columns: 1fr 120px 1fr; align-items: center; }
+    .side { display: flex; flex-direction: column; gap: 18px; }
+    .side span { font-size: 26px; font-weight: 650; }
+    .canvas { height: 470px; }
+    .to { justify-self: center; width: 64px; height: 64px; border-radius: 50%; background: var(--iman); display: grid; place-items: center; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="head">
+      <div><p class="kicker">Prototype</p><h2>From flow map<br><span class="quiet">to prototype.</span></h2></div>
+      <p class="lead">Select a connector and choose <strong>Create prototype interaction</strong>: its source gets a real <strong>On click → Navigate</strong> to the target.</p>
+    </div>
+    <div class="pair">
+      <div class="side"><div class="canvas"><svg id="flow" width="770" height="470"></svg></div><span>Connectors drawn with Autoflow</span></div>
+      <div class="to"><svg width="30" height="30" viewBox="0 0 30 30"><path d="M5 15h18M16 7l8 8-8 8" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="side"><div class="canvas"><svg id="proto" width="770" height="470"></svg></div><span>Prototype interactions</span></div>
+    </div>
+  </div>
+  <script src="scene.js"></script>
+  <script>
+    function scene(id, proto) {
+      const svg = document.getElementById(id);
+      const s = (x, y, t, btn) => phone(svg, x, y, { title: t, w: 170, h: 300, lines: 3, button: btn });
+      const a = s(50, 100, 'Home', 'iman'), b = s(300, 60, 'Product', 'ink'), c = s(550, 120, 'Cart', 'ink');
+      if (proto) {
+        // Figma's prototype noodle: thin blue curve with a dot at the start
+        const noodle = (x1, y1, x2, y2) => {
+          const mx = (x1 + x2) / 2;
+          el(svg, 'path', { d: `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2 - 10} ${y2}`, fill: 'none', stroke: C.proto, 'stroke-width': 3 });
+          el(svg, 'circle', { cx: x1, cy: y1, r: 7, fill: C.proto });
+          el(svg, 'path', { d: `M${x2} ${y2} l-14 -8 v16 Z`, fill: C.proto });
+        };
+        noodle(a.btn.x + a.btn.w, a.btn.y + 22, b.x, b.y + 90);
+        noodle(b.btn.x + b.btn.w, b.btn.y + 22, c.x, c.y + 90);
+      } else {
+        connector(svg, [[a.btn.x + a.btn.w, a.btn.y + 22], [260, a.btn.y + 22], [260, b.y + 90], [b.x, b.y + 90]], { width: 5, label: 'View' });
+        connector(svg, [[b.btn.x + b.btn.w, b.btn.y + 22], [510, b.btn.y + 22], [510, c.y + 90], [c.x, c.y + 90]], { width: 5, label: 'Buy' });
+      }
+    }
+    scene('flow', false);
+    scene('proto', true);
+  </script>
+</body>
+</html>

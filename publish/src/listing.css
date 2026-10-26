@@ -1,0 +1,248 @@
+/* Shared styles for the Figma Community images (cover and carousel), 1920×1080.
+   Autoflow palette: Papel background, Tinta text, Imán for connectors and accents.
+   Flat colour only; depth belongs to the glass icon and the panel's shadow. */
+@font-face {
+  font-family: "Inter Listing";
+  src: url("fonts/inter-opsz.woff2") format("woff2");
+  font-weight: 100 900;
+}
+
+:root {
+  --bg: #f7f5f1;
+  --canvas: #efece6;
+  --surface: #ffffff;
+  --line: #e4e0d9;
+  --text: #15171c;
+  --text-2: #5d636d;
+  --acero: #8b929c;
+  --iman: #f2462e;
+  --campo: #fde4dd;
+  --proto: #0d99ff;
+}
+
+html,
+body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  color: var(--text);
+  font-family: "Inter Listing", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+}
+
+.stage {
+  position: relative;
+  box-sizing: border-box;
+  width: 1920px;
+  height: 1080px;
+  padding: 120px 140px;
+}
+
+/* --- Brand and headings --- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* logo.svg is the glass symbol on a 256 canvas with ~19 % side margins: crop them visually */
+.brand img {
+  width: 96px;
+  height: 96px;
+  margin: -22px -14px -22px -18px;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: 680;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+h1 { font-size: 104px; }
+h2 { font-size: 80px; }
+
+.accent { color: var(--iman); }
+.quiet { color: var(--acero); }
+
+.kicker {
+  margin: 0 0 28px;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--iman);
+}
+
+.lead {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.38;
+  letter-spacing: -0.01em;
+  color: var(--text-2);
+}
+
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6em;
+  padding: 0.05em 0.35em;
+  border: 2px solid var(--line);
+  border-bottom-width: 4px;
+  border-radius: 0.3em;
+  background: var(--surface);
+  font: inherit;
+  font-weight: 650;
+  color: var(--text);
+}
+
+/* --- Steps --- */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: start;
+  gap: 24px;
+  font-size: 32px;
+  line-height: 1.35;
+  color: var(--text-2);
+}
+
+.steps b {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--iman);
+  color: #fff;
+  font-size: 26px;
+}
+
+.steps strong { color: var(--text); font-weight: 650; }
+
+/* --- Canvas scenes: screens joined by connectors (drawn in SVG) --- */
+
+.canvas {
+  position: relative;
+  border-radius: 28px;
+  background: var(--canvas);
+  overflow: hidden;
+}
+
+.canvas svg { display: block; }
+
+/* --- Plugin panel: the real UI (test/ui/harness.html → dist/ui.html) at 2× --- */
+
+.panel {
+  box-sizing: border-box;
+  width: 644px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--panel-bg, #ffffff);
+  border: 2px solid var(--panel-line, #e3e0da);
+  box-shadow: 0 30px 80px rgba(40, 30, 20, 0.16), 0 4px 14px rgba(40, 30, 20, 0.08);
+}
+
+.panel.dark {
+  --panel-bg: #2c2c2c;
+  --panel-line: #3a3a3a;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+}
+
+.panel .bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: calc(80px * var(--s, 1));
+  padding: 0 calc(26px * var(--s, 1));
+  border-bottom: 2px solid var(--panel-line, #e3e0da);
+  font-size: calc(22px * var(--s, 1));
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--panel-text, #1e1e1e);
+}
+
+.panel.dark .bar { --panel-text: #f0f0f0; }
+
+.panel .bar img { width: calc(36px * var(--s, 1)); height: calc(36px * var(--s, 1)); border-radius: 22%; }
+
+.panel .bar .x {
+  margin-left: auto;
+  width: 18px;
+  height: 18px;
+  background:
+    linear-gradient(45deg, transparent 45%, currentColor 45% 55%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, currentColor 45% 55%, transparent 55%);
+  opacity: 0.7;
+}
+
+.panel .view {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel iframe {
+  display: block;
+  width: 320px;
+  border: 0;
+  transform: scale(2);
+  transform-origin: 0 0;
+}
+
+/* --- Feature cards --- */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 44px;
+  border-radius: 28px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.card p {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.card .ico {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--campo);
+  color: var(--iman);
+}

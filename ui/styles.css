@@ -1,0 +1,494 @@
+/* Autoflow panel on FigUI3. Only Figma tokens: Figma injects --figma-color-*
+   (themeColors: true) and FigUI3 provides fallbacks outside Figma. */
+
+:root {
+  /* FigUI3 bug: its light fallback makes menus white on white text.
+     In UI3 menus are dark in both themes. */
+  --figma-color-bg-menu: #1e1e1e;
+}
+
+* { box-sizing: border-box; }
+
+/* Keep the root at 16px: FigUI3 sizes controls in rem (1.5rem = 24px). */
+html { background: var(--figma-color-bg); }
+body {
+  margin: 0;
+  background: var(--figma-color-bg);
+  color: var(--figma-color-text);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+[hidden] { display: none !important; }
+
+#app > .section:last-child { border-bottom: 0; }
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 16px 12px;
+  border-bottom: 1px solid var(--figma-color-border);
+}
+
+/* Section headers: borderless, title aligned with the content column. */
+.section > fig-header {
+  padding-left: 0;
+  padding-right: 0;
+  gap: 0;
+}
+.section > fig-header > h3 {
+  padding-left: 0;
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--figma-color-text);
+}
+.section > fig-header > .meta {
+  color: var(--figma-color-text-secondary);
+  white-space: nowrap;
+}
+
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+/* A hidden field (radius on curves/straights) gives its share to the others. */
+.row3:has(> [hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Short visible label beside a field, where an icon would be ambiguous. */
+.mini { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.mini-label { flex: none; color: var(--figma-color-text-secondary); }
+.mini > fig-input-number { flex: 1 1 auto; min-width: 0; }
+.pair > [hidden] + *,
+.pair > *:has(+ [hidden]),
+.pair > *:only-child { grid-column: 1 / -1; }
+
+.hint {
+  margin: 0;
+  color: var(--figma-color-text-secondary);
+}
+.strong { color: var(--figma-color-text); font-weight: 600; }
+
+/* fig-field brings its own 12px gutters for edge-to-edge panels; inside a
+   section the 16px section padding already provides them. */
+.section fig-field {
+  --fig-field-left-padding: 0px;
+  --fig-field-right-padding: 0px;
+  --fig-field-top-padding: 0px;
+  --fig-field-bottom-padding: 0px;
+}
+.section fig-field > label { color: var(--figma-color-text-secondary); }
+.section fig-field > fig-switch { justify-self: end; align-self: center; }
+
+/* Official 24px icons as input adornments. */
+.adorn,
+[data-icon] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--figma-color-icon-secondary);
+}
+.adorn { width: 24px; height: 24px; flex: none; }
+[data-icon] > svg { width: 24px; height: 24px; display: block; }
+fig-button [data-icon] { color: var(--figma-color-icon); }
+
+
+/* Origin → target: two slots that fill in as the user clicks. The next slot
+   to fill carries the brand outline; empty ones read as placeholders. */
+.route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 4px;
+}
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 8px 6px;
+  border-radius: var(--radius-medium, 5px);
+  box-shadow: inset 0 0 0 1px var(--figma-color-border);
+  color: var(--figma-color-text-tertiary, var(--figma-color-text-secondary));
+}
+.slot.is-next { box-shadow: inset 0 0 0 1px var(--figma-color-border-selected, var(--figma-color-bg-brand)); }
+.slot.is-filled {
+  box-shadow: none;
+  background: var(--figma-color-bg-secondary);
+  color: var(--figma-color-text);
+}
+.slot-label { color: var(--figma-color-text-secondary); }
+.slot.is-next .slot-label { color: var(--figma-color-text-brand); }
+.slot-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot.is-filled .slot-name { font-weight: 500; }
+/* Endpoint names of a selected connector jump to the element on the canvas. */
+.slot-link {
+  align-self: flex-start;
+  max-width: calc(100% + 8px);
+  margin: 0 -4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-small, 2px);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.slot-link:hover:not(:disabled) { background: var(--figma-color-bg-hover); }
+.slot-link:focus-visible { outline: 1px solid var(--figma-color-border-selected, var(--figma-color-bg-brand)); }
+.slot-link:disabled { cursor: default; }
+.slot-port {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 4px;
+}
+.port-caption { color: var(--figma-color-text-secondary); line-height: 16px; }
+.route-arrow { align-self: center; color: var(--figma-color-icon-secondary); }
+.route-arrow > svg { transform: scaleX(-1); } /* the official cap glyph faces the start */
+
+/* Side picker: FigUI3 origin grid, sized like a small element. On a filled
+   slot its surface takes the panel color so it still reads as a box. */
+fig-origin-grid.port {
+  width: 72px;
+  --origin-grid-height: 14px;
+  --origin-grid-dot-size: 4px;
+  --origin-grid-handle-size: 12px;
+}
+.slot.is-filled fig-origin-grid.port .origin-grid { background: var(--figma-color-bg); }
+/* Round dots and handle, like connection points. Only the four sides and the
+   centre (automatic) mean something: the corner dots are hidden. */
+fig-origin-grid.port .origin-grid-dot { border-radius: 50%; }
+fig-origin-grid.port .origin-grid-cell:is([data-col="0"], [data-col="2"]):is([data-row="0"], [data-row="2"]) .origin-grid-dot { visibility: hidden; }
+/* Solid brand dot: no white ring, no outlines, no elevation. */
+fig-origin-grid.port fig-handle {
+  --border-radius: 50%;
+  --fig-handle-bg: var(--figma-color-bg-brand);
+  --fig-handle-padding: 0px;
+  --fig-handle-shadow: none;
+  --fig-handle-inner-radius: 50%;
+  --fig-handle-inner-outline: none;
+}
+
+/* The one action left: copy, or the ⌘V prompt once everything is ready. */
+.next { display: flex; flex-direction: column; gap: 8px; }
+.next-row { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.next-row > .hint { flex: 1 1 auto; }
+.next-row > fig-button { flex: none; margin-right: -4px; }
+.paste {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-height: 40px;
+  padding: 8px;
+  border-radius: var(--radius-medium, 5px);
+  background: var(--figma-color-bg-brand-tertiary, var(--figma-color-bg-selected));
+  color: var(--figma-color-text);
+  font-weight: 500;
+}
+.paste-text { flex: 1 1 auto; }
+.paste > fig-button { flex: none; margin-right: -4px; }
+.kbd-large {
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  background: var(--figma-color-bg);
+}
+
+kbd {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: var(--radius-small, 2px);
+  background: var(--figma-color-bg-secondary);
+  box-shadow: inset 0 0 0 1px var(--figma-color-border);
+  font: inherit;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--figma-color-text);
+}
+
+/* What ⌘V will create: one row per connector, source → target. */
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.link {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-medium, 5px);
+  background: var(--figma-color-bg-secondary);
+}
+.link-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(50% - 14px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-arrow { flex: none; color: var(--figma-color-icon-secondary); }
+.link-arrow > svg { transform: scaleX(-1); } /* the official cap glyph faces the start */
+.link-more { display: block; line-height: 24px; color: var(--figma-color-text-secondary); }
+
+/* Hint on the left, its action on the right. */
+.action-row { display: flex; align-items: center; gap: 12px; }
+.action-row > .hint { flex: 1 1 auto; }
+.action-row > fig-button { flex: none; }
+
+/* Page notice (connectors that lost an end). */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 4px 4px 0;
+  border-radius: var(--radius-medium, 5px);
+  background: var(--figma-color-bg-secondary);
+}
+.notice-icon { color: var(--figma-color-icon-secondary); }
+#brokenRow .notice-icon { color: var(--figma-color-icon-warning, var(--figma-color-text-warning)); }
+.notice-text { flex: 1 1 auto; margin: 0; color: var(--figma-color-text); }
+.notice-sub { display: block; color: var(--figma-color-text-secondary); }
+.notice > fig-button { flex: none; }
+
+fig-button[aria-busy="true"] { cursor: progress; }
+fig-button fig-spinner { margin-right: 4px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Switch rows: the label takes the free width, the switch hugs the edge. */
+.section fig-field:has(> fig-switch) { grid-template-columns: 0 1fr auto 0; }
+
+/* Ghost icon buttons sit on the content edge, like Figma's +/− section buttons
+   (the 24px button has a 4px inner margin around the 16px glyph). */
+.section > fig-header > :last-child:not(.meta) { margin-right: -4px; }
+
+/* Sentence case like Figma's Spanish UI (FigUI3 capitalizes segment labels). */
+.section fig-segment { text-transform: none; } /* beats FigUI3's :is(.segmented-control, …) rule */
+
+
+/* ---------------------------------------------------------------- toolbar
+   FigUI3 toolbelt, restyled as the panel's inline toolbar: secondary fill,
+   no elevation, items sharing the width. Radius is concentric with the 5px
+   items inside (4px padding). */
+fig-toolbelt.toolbar {
+  --fig-toolbelt-gap: 2px;
+  --fig-toolbelt-group-gap: 4px;
+  --fig-toolbelt-padding-block: 4px;
+  --fig-toolbelt-padding-inline: 4px;
+  --fig-toolbelt-item-height: 24px;
+  align-self: stretch;
+  background: var(--figma-color-bg-secondary) !important;
+  border-radius: calc(var(--radius-medium, 5px) + 4px);
+}
+fig-toolbelt.toolbar::after { display: none; }
+fig-toolbelt.toolbar::part(scroll-region),
+fig-toolbelt.toolbar::part(viewport) { display: flex; width: 100%; }
+fig-toolbelt.toolbar > fig-toolbelt-group { flex: 1 1 auto; }
+fig-toolbelt.toolbar fig-toolbelt-item.tool {
+  flex: 1 1 0;
+  min-width: 24px;
+  padding: 0 2px;
+  color: var(--figma-color-icon);
+}
+fig-toolbelt.toolbar fig-toolbelt-item.tool:hover { background: var(--figma-color-bg-hover); }
+fig-toolbelt.toolbar fig-toolbelt-item.tool[selected] { background: var(--figma-color-bg-pressed, var(--figma-color-bg-hover)); color: var(--figma-color-icon); }
+fig-toolbelt.toolbar fig-toolbelt-item.tool.is-on { background: var(--figma-color-bg-selected, var(--figma-color-bg-brand-tertiary)); }
+.tool-swatch {
+  width: 16px;
+  height: 16px;
+  margin: 0 4px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.tool-chevron { width: 12px; overflow: hidden; }
+.tool-chevron > svg { margin: 0 -6px; }
+.tool-glyph { display: inline-flex; }
+
+/* --------------------------------------------------------------- pickers
+   fig-popup (menu theme) holding icon-only choices, FigJam-style. Radius is
+   concentric: 4px padding around 9px items. */
+dialog.picker {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  width: max-content !important; /* fig-popup sizes itself; let the content set it */
+  max-width: none !important;
+  padding: 4px !important; /* fig-popup's own 8px 0 would clip the grid */
+  border: 0;
+  border-radius: 13px;
+  background: var(--figma-color-bg-menu, #1e1e1e);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+dialog.picker[open] { display: flex; flex-direction: row !important; flex-wrap: nowrap; } /* fig-popup stacks its content in a column */
+/* Icon choices: a toolbelt per value, divided like FigJam's groups. */
+.pick-belt {
+  --fig-toolbelt-gap: 2px;
+  --fig-toolbelt-padding-block: 0px;
+  --fig-toolbelt-padding-inline: 0px;
+  --fig-toolbelt-item-height: 32px;
+  --fig-toolbelt-overflow-fade-size: 0px;
+  flex: none;
+  width: max-content !important;
+  border-radius: 0;
+  background: transparent !important;
+}
+.pick-belt::after { display: none; }
+.pick-belt::part(viewport) { overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.picker-sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.pick-belt fig-toolbelt-item.pick {
+  width: 32px;
+  border-radius: 9px;
+  color: #fff;
+}
+.pick-belt fig-toolbelt-item.pick:hover { background: rgba(255, 255, 255, 0.08); }
+.pick-belt fig-toolbelt-item.pick:focus-visible { outline: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6); }
+.pick-belt fig-toolbelt-item.pick[selected] { background: var(--figma-color-bg-brand, #0d99ff); color: #fff; }
+.pick [data-icon] { color: inherit; }
+/* Official stroke-cap glyphs face the start of the line; the end picker and
+   its trigger show them mirrored. */
+.picker-endCap [data-icon^="cap"] > svg,
+.tool-glyph.is-end [data-icon^="cap"] > svg { transform: scaleX(-1); }
+
+/* Color grid: fig-swatches; the selected one gets a ring with a gap. */
+.swatch-grid { display: grid; grid-template-columns: repeat(11, 24px); gap: 2px; }
+.pick-swatch {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: default;
+  outline: none;
+}
+/* fig-swatch as a plain round chip: no inner padding, no alpha
+   checkerboard, and its native color input switched off (the button picks). */
+.pick-swatch fig-swatch,
+.pick-swatch fig-swatch[selected] {
+  --size: 18px;
+  --padding: 0px;
+  --border-radius: 50%;
+  --fig-swatch-border-radius: 50%;
+  background-color: transparent;
+  border-radius: 50%;
+  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+.pick-swatch fig-swatch > div,
+.pick-swatch fig-swatch > input { display: none; }
+.pick-swatch fig-swatch::after { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.pick-swatch:hover fig-swatch { transform: scale(1.1); }
+.pick-swatch fig-swatch[selected] {
+  box-shadow: 0 0 0 2px var(--figma-color-bg-menu, #1e1e1e), 0 0 0 4px var(--figma-color-bg-brand, #0d99ff);
+}
+.pick-swatch:focus-visible fig-swatch { box-shadow: 0 0 0 2px var(--figma-color-bg-menu, #1e1e1e), 0 0 0 3px rgba(255, 255, 255, 0.7); }
+
+.label-row { display: flex; align-items: center; gap: 8px; }
+.label-row > fig-input-text { flex: 1 1 auto; min-width: 0; }
+.label-row > fig-button { margin-right: -4px; }
+
+/* "Más opciones" disclosure. */
+fig-button.disclosure {
+  align-self: flex-start;
+  margin-left: -4px;
+  padding-left: 0;
+  gap: 0;
+  color: var(--figma-color-text-secondary);
+}
+fig-button.disclosure [data-icon] { color: var(--figma-color-icon-secondary); }
+.disclosure-chevron { width: 16px; overflow: hidden; transform: rotate(-90deg); }
+.disclosure-chevron > svg { margin: 0 -4px; }
+fig-button.disclosure[aria-expanded="true"] .disclosure-chevron { transform: none; }
+
+.subhead {
+  margin: 4px 0 0;
+  font-weight: 600;
+  color: var(--figma-color-text);
+}
+
+/* ------------------------------------------------------------- saved styles
+   Rows like Figma's style lists: a line preview drawn in the style, the name,
+   and a delete button that shows on hover or focus. */
+.presets { display: flex; flex-direction: column; gap: 4px; }
+.presets-head { display: flex; align-items: center; justify-content: space-between; min-height: 24px; }
+.presets-head > .subhead { margin: 0; }
+.presets-head > fig-button { margin-right: -4px; }
+.preset-form { display: flex; align-items: center; gap: 4px; }
+.preset-form > fig-input-text { flex: 1 1 auto; min-width: 0; }
+.preset-form > fig-button[icon] { margin-right: -4px; }
+.preset-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.preset-list:empty { display: none; }
+.preset { position: relative; display: flex; align-items: center; }
+.preset-apply {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 32px 0 8px;
+  border: 0;
+  border-radius: var(--radius-medium, 5px);
+  background: transparent;
+  color: var(--figma-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.preset-apply:hover { background: var(--figma-color-bg-hover); }
+.preset-apply:focus-visible { outline: 1px solid var(--figma-color-border-selected, var(--figma-color-bg-brand)); outline-offset: -1px; }
+.preset-apply[aria-pressed="true"] { background: var(--figma-color-bg-selected, var(--figma-color-bg-brand-tertiary)); }
+.preset-line { flex: none; }
+.preset-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-delete {
+  position: absolute;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-medium, 5px);
+  background: transparent;
+  color: var(--figma-color-icon-secondary);
+  opacity: 0;
+  cursor: pointer;
+}
+.preset:hover .preset-delete,
+.preset-delete:focus-visible { opacity: 1; }
+.preset-delete:hover { background: var(--figma-color-bg-hover); color: var(--figma-color-icon); }
+.preset-delete:focus-visible { outline: 1px solid var(--figma-color-border-selected, var(--figma-color-bg-brand)); }

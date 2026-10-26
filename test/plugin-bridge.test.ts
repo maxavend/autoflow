@@ -1,0 +1,324 @@
+// Runs src/code.ts against a minimal fake of the Figma Plugin API and checks
+// the UI ↔ plugin contract (every UI message gets exactly one `result`, errors
+// come back as { ok: false }) and paste adoption: seed connectors pasted with
+// elements selected get attached source → target, extra copies are removed.
+import { test, before } from 'node:test';
+import assert from 'node:assert/strict';
+
+type Msg = { type: string; [key: string]: unknown };
+type Fake = Record<string, unknown> & { id: string; type: string; name: string; parent: Fake | null; removed: boolean };
+
+const posted: Msg[] = [];
+const notices: { message: string; error: boolean }[] = [];
+const storage = new Map<string, unknown>();
+const nodes = new Map<string, Fake>();
+const handlers: Record<string, (...a: unknown[]) => void> = {};
+let nodeChange: ((e: unknown) => void) | null = null;
+
+const ui: { postMessage(m: Msg): void; resize(w: number, h: number): void; onmessage?: (m: Msg) => void } = {
+  postMessage: (m) => { posted.push(m); },
+  resize: () => {},
+};
+
+function children(p: Fake): Fake[] {
+  return Array.from(nodes.values()).filter((n) => n.parent === p && !n.removed);
+}
+function all(p: Fake): Fake[] {
+  return children(p).flatMap((c) => [c, ...all(c)]);
+}
+
+const page: Fake = {
+  id: '0:1',
+  type: 'PAGE',
+  name: 'Page 1',
+  parent: null,
+  removed: false,
+  selection: [] as Fake[],
+  findAllWithCriteria: (c: { types: string[] }) => all(page).filter((n) => c.types.includes(n.type)),
+  findAll: (fn: (n: Fake) => boolean) => all(page).filter(fn),
+  on: (_: string, fn: (e: unknown) => void) => { nodeChange = fn; },
+  off: () => { nodeChange = null; },
+  setRelaunchData: () => {},
+  appendChild: (n: Fake) => { n.parent = page; },
+  getSharedPluginData: () => '',
+};
+Object.defineProperty(page, 'children', { get: () => children(page) });
+
+function plugData() {
+  const data = new Map<string, string>();
+  return {
+    getSharedPluginData: (ns: string, k: string) => data.get(ns + '/' + k) || '',
+    setSharedPluginData: (ns: string, k: string, v: string) => { data.set(ns + '/' + k, v); },
+  };
+}
+
+function frame(id: string, name: string, x: number, parent: Fake = page): Fake {
+  const n: Fake = {
+    id, type: 'FRAME', name, parent, removed: false, width: 200, height: 400, x, y: 0,
+    absoluteBoundingBox: { x, y: 0, width: 200, height: 400 }, reactions: [],
+    remove() { n.removed = true; for (const c of children(n)) c.removed = true; },
+    resize(w: number, h: number) { n.width = w; n.height = h; },
+    appendChild(c: Fake) { c.parent = n; },
+    ...plugData(),
+  };
+  Object.defineProperty(n, 'children', { get: () => children(n) });
+  nodes.set(id, n);
+  return n;
+}
+let frames = 500;
+
+let seq = 100;
+function seed(parent: Fake): Fake {
+  const id = `9:${++seq}`;
+  const n: Fake = {
+    id, type: 'CONNECTOR', name: 'Autoflow connector', parent, removed: false,
+    connectorStart: { position: { x: 0, y: 0 } },
+    connectorEnd: { position: { x: 160, y: 0 } },
+    connectorLineType: 'ELBOWED', connectorStartStrokeCap: 'NONE', connectorEndStrokeCap: 'ARROW_LINES',
+    strokes: [], strokeWeight: 1, dashPattern: [], cornerRadius: 24,
+    text: { characters: '', fontName: { family: 'Inter', style: 'Medium' }, fontSize: 16, fills: [] },
+    remove() { n.removed = true; },
+    ...plugData(),
+  };
+  (n.setSharedPluginData as (a: string, b: string, c: string) => void)('autoflow', 'seed', '1');
+  nodes.set(id, n);
+  return n;
+}
+
+(globalThis as unknown as { __html__: string }).__html__ = '<html></html>'; // injected by Figma from manifest.ui
+(globalThis as unknown as { figma: unknown }).figma = {
+  command: 'open',
+  currentPage: page,
+  ui,
+  mixed: Symbol('mixed'),
+  skipInvisibleInstanceChildren: false,
+  showUI: () => {},
+  on: (ev: string, fn: (...a: unknown[]) => void) => { handlers[ev] = fn; },
+  notify: (message: string, opts?: { error?: boolean }) => { notices.push({ message, error: !!opts?.error }); },
+  clientStorage: {
+    getAsync: async (k: string) => storage.get(k),
+    setAsync: async (k: string, v: unknown) => { storage.set(k, v); },
+  },
+  listAvailableFontsAsync: async () => [
+    { fontName: { family: 'Roboto', style: 'Bold' } },
+    { fontName: { family: 'Inter', style: 'Regular' } },
+    { fontName: { family: 'Inter', style: 'Semi Bold' } },
+    { fontName: { family: 'Inter', style: 'Regular' } },
+  ],
+  loadFontAsync: async () => {},
+  createFrame: () => frame(`8:${++frames}`, 'Frame', 0),
+  getNodeByIdAsync: async (id: string) => {
+    const n = nodes.get(id);
+    return n && !n.removed ? n : null;
+  },
+  commitUndo: () => {},
+  viewport: { scrollAndZoomIntoView: () => {}, center: { x: 0, y: 0 } },
+  closePlugin: () => {},
+};
+
+const tick = (ms = 5) => new Promise((r) => setTimeout(r, ms));
+
+async function send(msg: Msg): Promise<Msg | undefined> {
+  const requestId = `t${++seq}`;
+  const from = posted.length;
+  ui.onmessage!({ ...msg, requestId });
+  for (let i = 0; i < 100; i++) {
+    const res = posted.slice(from).find((m) => m.type === 'result' && m.requestId === requestId);
+    if (res) {
+      const extra = posted.slice(from).filter((m) => m.type === 'result' && m.requestId === requestId);
+      assert.equal(extra.length, 1, `exactly one result for ${msg.type}`);
+      return res;
+    }
+    await tick();
+  }
+  return undefined;
+}
+
+function select(...ns: Fake[]) {
+  page.selection = ns;
+  handlers.selectionchange();
+}
+
+// What Figma does on ⌘V with elements selected: one copy inside each.
+async function paste(into: Fake[]): Promise<Fake[]> {
+  const made = (into.length ? into : [page]).map((p) => seed(p));
+  page.selection = made;
+  handlers.selectionchange();
+  nodeChange!({ nodeChanges: made.map((n) => ({ type: 'CREATE', id: n.id })) });
+  await tick(80);
+  return made;
+}
+
+before(async () => {
+  await import('../src/code.ts');
+  for (let i = 0; i < 100 && !ui.onmessage; i++) await tick();
+  assert.ok(ui.onmessage, 'panel registered its message handler');
+  assert.ok(nodeChange, 'watches the page for pastes');
+});
+
+test('ready → fonts grouped by family (sorted, deduped) + state + ok', async () => {
+  const from = posted.length;
+  const res = await send({ type: 'ready' });
+  assert.deepEqual(res && { ok: res.ok, action: res.action }, { ok: true, action: 'ready' });
+  const fonts = posted.slice(from).find((m) => m.type === 'fonts');
+  assert.deepEqual(fonts?.fonts, [
+    { family: 'Inter', styles: ['Regular', 'Semi Bold'] },
+    { family: 'Roboto', styles: ['Bold'] },
+  ]);
+  const state = posted.slice(from).find((m) => m.type === 'state') as Msg & { stats: unknown; connectors: unknown[] };
+  assert.deepEqual(state.stats, { total: 0, broken: 0 });
+  assert.deepEqual(state.connectors, []);
+  assert.deepEqual((state as unknown as { presets: unknown[] }).presets, []);
+});
+
+test('notifications use the platform paste shortcut the panel reports', async () => {
+  ui.onmessage!({ type: 'env', paste: 'Ctrl+V' }); // fire-and-forget, like the panel sends it
+  await tick(10);
+  const before = notices.length;
+  await paste([]);
+  assert.ok(notices.slice(before).some((n) => /before Ctrl\+V/.test(n.message)));
+  ui.onmessage!({ type: 'env', paste: '⌘V' });
+  await tick(10);
+});
+
+test('defaults are normalized before being stored', async () => {
+  const res = await send({
+    type: 'defaults',
+    defaults: { kind: 'curve', style: { color: 'red', weight: -4, labelFont: { family: '', style: 'Bold' }, endCap: 'triangle' } },
+  });
+  assert.equal(res?.ok, true);
+  const saved = storage.get('autoflow.defaults') as { kind: string; style: Record<string, unknown> };
+  assert.equal(saved.kind, 'curve');
+  assert.equal(saved.style.color, '#0d99ff');       // invalid hex → default
+  assert.equal(saved.style.weight, 0.5);            // negative → clamped
+  assert.equal(saved.style.endCap, 'triangle');
+  assert.deepEqual(saved.style.labelFont, { family: 'Inter', style: 'Medium' });
+  assert.equal((await send({ type: 'reset-defaults' }))?.ok, true);
+});
+
+test('connector actions on unknown ids still resolve', async () => {
+  for (const type of ['patch', 'swap', 'delete', 'prototype']) {
+    const res = await send({ type, ids: ['7:7'], patch: { style: { color: '#fff' } } });
+    assert.equal(res?.ok, true, type);
+  }
+  assert.equal((await send({ type: 'select', id: '7:7', which: 'from' }))?.ok, false);
+  assert.equal((await send({ type: 'defaults-from', id: '7:7' }))?.ok, false);
+});
+
+test('paste with two elements selected: one connector A → B on the page, extra copy removed', async () => {
+  const a = frame('2:1', 'Home', 0);
+  const b = frame('2:2', 'Detalle', 400);
+  select(a);
+  select(a, b);
+  const made = await paste([a, b]);
+  const kept = made.filter((n) => !n.removed);
+  assert.equal(kept.length, 1);
+  const c = kept[0];
+  assert.equal(c.parent, page, 'moved out of the frame');
+  assert.deepEqual(c.connectorStart, { endpointNodeId: '2:1', magnet: 'AUTO' });
+  assert.deepEqual(c.connectorEnd, { endpointNodeId: '2:2', magnet: 'AUTO' });
+  assert.equal(c.name, 'Home → Detalle');
+  assert.equal(c.connectorEndStrokeCap, 'ARROW_LINES');
+  assert.equal((c.getSharedPluginData as (a: string, b: string) => string)('autoflow', 'seed'), '');
+  assert.deepEqual(page.selection, [c]);
+  assert.ok(notices.some((n) => n.message === 'Connector created'));
+});
+
+test('click order wins and three elements chain A → B → C', async () => {
+  const a = frame('3:1', 'A', 0);
+  const b = frame('3:2', 'B', 400);
+  const c = frame('3:3', 'C', 800);
+  select(b);
+  select(b, a);       // Figma may report any order; the click order was B then A
+  select(c, b, a);
+  const made = (await paste([a, b, c])).filter((n) => !n.removed);
+  const links = made.map((n) => [(n.connectorStart as { endpointNodeId: string }).endpointNodeId, (n.connectorEnd as { endpointNodeId: string }).endpointNodeId]);
+  assert.deepEqual(links, [['3:2', '3:1'], ['3:1', '3:3']]);
+});
+
+test('panel order and fan mode are used for the paste', async () => {
+  const a = frame('4:1', 'A', 0);
+  const b = frame('4:2', 'B', 400);
+  const c = frame('4:3', 'C', 800);
+  select(a, b, c);
+  ui.onmessage!({ type: 'plan', order: ['4:3', '4:1', '4:2'], mode: 'fan' });
+  await tick(10);
+  const made = (await paste([a, b, c])).filter((n) => !n.removed);
+  const links = made.map((n) => [(n.connectorStart as { endpointNodeId: string }).endpointNodeId, (n.connectorEnd as { endpointNodeId: string }).endpointNodeId]);
+  assert.deepEqual(links, [['4:3', '4:1'], ['4:3', '4:2']]);
+  ui.onmessage!({ type: 'plan', order: [], mode: 'chain' });
+});
+
+test('a second ⌘V does not link the same elements again', async () => {
+  const before = notices.length;
+  const [c] = await paste([]);
+  assert.equal(c.removed, false);
+  assert.deepEqual(c.connectorStart, { position: { x: 0, y: 0 } }, 'left free');
+  assert.ok(notices.slice(before).some((n) => /Select a source and a target/.test(n.message)));
+});
+
+test('pastes of other connectors (no seed mark) are ignored', async () => {
+  const other = seed(page);
+  (other.setSharedPluginData as (a: string, b: string, c: string) => void)('autoflow', 'seed', '');
+  nodeChange!({ nodeChanges: [{ type: 'CREATE', id: other.id }] });
+  await tick(60);
+  assert.equal(other.name, 'Autoflow connector');
+});
+
+test('patch, swap and clean act on real connectors', async () => {
+  const a = frame('5:1', 'A', 0);
+  const b = frame('5:2', 'B', 400);
+  select(a, b);
+  const [c] = (await paste([a, b])).filter((n) => !n.removed);
+  assert.equal((await send({ type: 'patch', ids: [c.id], patch: { kind: 'curve', style: { dash: 'dash', weight: 2 } } }))?.ok, true);
+  assert.equal(c.connectorLineType, 'CURVED');
+  assert.deepEqual(c.dashPattern, [8, 6]);
+  assert.equal((await send({ type: 'patch', ids: [c.id], patch: { toSide: 'left', toT: 0.25 } }))?.ok, true);
+  assert.deepEqual(c.connectorEnd, { endpointNodeId: '5:2', position: { x: 0, y: 100 } });
+  assert.equal((await send({ type: 'swap', ids: [c.id] }))?.ok, true);
+  assert.equal((c.connectorStart as { endpointNodeId: string }).endpointNodeId, '5:2');
+  // B deleted: Figma leaves that end free.
+  c.connectorStart = { position: { x: 0, y: 0 } };
+  assert.equal((await send({ type: 'select-broken' }))?.ok, true);
+  assert.deepEqual(page.selection, [c], 'Ver shows the loose connector');
+  const res = await send({ type: 'clean' });
+  assert.equal(res?.ok, true);
+  assert.equal(c.removed, true);
+  assert.match(String(res?.message), /^1 loose connector deleted/);
+});
+
+test('the sides chosen in the panel are used by the next paste', async () => {
+  const a = frame('7:1', 'Inicio', 0);
+  const b = frame('7:2', 'Perfil', 400);
+  select(a);
+  select(a, b);
+  ui.onmessage!({ type: 'plan', order: [], mode: 'chain', fromSide: 'right', toSide: 'left' });
+  await tick(10);
+  const [c] = (await paste([a, b])).filter((n) => !n.removed);
+  assert.deepEqual([c.connectorStart, c.connectorEnd], [{ endpointNodeId: '7:1', magnet: 'RIGHT' }, { endpointNodeId: '7:2', magnet: 'LEFT' }]);
+  ui.onmessage!({ type: 'plan', order: [], mode: 'chain', fromSide: 'auto', toSide: 'auto' });
+  await tick(10);
+});
+
+test('saved styles: stored per user, normalized, named, and deletable', async () => {
+  const res = await send({ type: 'preset-save', name: '  Flujo principal  ', preset: { kind: 'curve', style: { color: '#F24822', weight: 99, dash: 'dash' } } });
+  assert.equal(res?.message, 'Style “Flujo principal” saved');
+  const saved = storage.get('autoflow.presets') as { id: string; name: string; kind: string; style: { color: string; weight: number; dash: string } }[];
+  assert.equal(saved.length, 1);
+  assert.deepEqual([saved[0].name, saved[0].kind, saved[0].style.color, saved[0].style.weight, saved[0].style.dash], ['Flujo principal', 'curve', '#f24822', 24, 'dash']);
+  await send({ type: 'preset-save', name: '', preset: { kind: 'elbow', style: {} } });
+  const names = (storage.get('autoflow.presets') as { name: string }[]).map((p) => p.name);
+  assert.deepEqual(names, ['Flujo principal', 'Style 2'], 'unnamed styles get a numbered name');
+  const state = posted.filter((m) => m.type === 'state').slice(-1)[0] as unknown as { presets: { name: string }[] };
+  assert.deepEqual(state.presets.map((p) => p.name), names, 'the panel receives them');
+  await send({ type: 'preset-delete', id: saved[0].id });
+  assert.deepEqual((storage.get('autoflow.presets') as { name: string }[]).map((p) => p.name), ['Style 2']);
+});
+
+test('plan and resize are fire-and-forget (no result)', async () => {
+  const from = posted.length;
+  ui.onmessage!({ type: 'resize', height: 640, requestId: 'x' });
+  ui.onmessage!({ type: 'plan', order: [], mode: 'chain', requestId: 'y' });
+  await tick(30);
+  assert.equal(posted.slice(from).filter((m) => m.type === 'result').length, 0);
+});

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="1024" height="1024" role="img"><title>Autoflow icon (dark)</title><defs>
+<radialGradient id="tiled" cx=".32" cy=".12" r="1.05"><stop offset="0" stop-color="#33363F"/><stop offset=".55" stop-color="#1B1D23"/><stop offset="1" stop-color="#0E0F13"/></radialGradient>
+<linearGradient id="bodyd" x1=".25" y1="0" x2=".5" y2="1"><stop offset="0" stop-color="#FF7458"/><stop offset=".48" stop-color="#F2462E"/><stop offset="1" stop-color="#E23B25"/></linearGradient>
+<linearGradient id="polesd" x1=".3" y1="0" x2=".5" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#F1F2F4"/><stop offset="1" stop-color="#DCE0E6"/></linearGradient>
+<linearGradient id="sheend" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="rimd" x1="0" y1="0" x2=".75" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset=".3" stop-color="#fff" stop-opacity=".1"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<clipPath id="inBodyd"><path fill-rule="evenodd" clip-rule="evenodd" d="M48 168 V96 A64 64 0 0 1 112 32 H144 A64 64 0 0 1 208 96 V168 A8 8 0 0 1 200 176 H184 A8 8 0 0 1 176 168 V152 A8 8 0 0 0 168 144 H88 A8 8 0 0 0 80 152 V168 A8 8 0 0 1 72 176 H56 A8 8 0 0 1 48 168 Z M80 106 V96 A32 32 0 0 1 112 64 H144 A32 32 0 0 1 176 96 V106 A8 8 0 0 1 168 114 H88 A8 8 0 0 1 80 106 Z"/></clipPath>
+<clipPath id="inPolesd"><path d="M56 192 H72 A8 8 0 0 1 80 200 V216 A8 8 0 0 1 72 224 H56 A8 8 0 0 1 48 216 V200 A8 8 0 0 1 56 192 Z M184 192 H200 A8 8 0 0 1 208 200 V216 A8 8 0 0 1 200 224 H184 A8 8 0 0 1 176 216 V200 A8 8 0 0 1 184 192 Z"/></clipPath>
+<filter id="softd" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="contactd" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.6"/></filter></defs><rect width="256" height="256" fill="url(#tiled)"/><g transform="translate(43.52 40.52) scale(0.66)">
+<path d="M48 168 V96 A64 64 0 0 1 112 32 H144 A64 64 0 0 1 208 96 V168 A8 8 0 0 1 200 176 H184 A8 8 0 0 1 176 168 V152 A8 8 0 0 0 168 144 H88 A8 8 0 0 0 80 152 V168 A8 8 0 0 1 72 176 H56 A8 8 0 0 1 48 168 Z M80 106 V96 A32 32 0 0 1 112 64 H144 A32 32 0 0 1 176 96 V106 A8 8 0 0 1 168 114 H88 A8 8 0 0 1 80 106 Z" fill-rule="evenodd" fill="#000000" opacity="0.3" filter="url(#softd)" transform="translate(0 6)"/>
+<path d="M48 168 V96 A64 64 0 0 1 112 32 H144 A64 64 0 0 1 208 96 V168 A8 8 0 0 1 200 176 H184 A8 8 0 0 1 176 168 V152 A8 8 0 0 0 168 144 H88 A8 8 0 0 0 80 152 V168 A8 8 0 0 1 72 176 H56 A8 8 0 0 1 48 168 Z M80 106 V96 A32 32 0 0 1 112 64 H144 A32 32 0 0 1 176 96 V106 A8 8 0 0 1 168 114 H88 A8 8 0 0 1 80 106 Z" fill-rule="evenodd" fill="#2a0d08" opacity=".12" filter="url(#contactd)" transform="translate(0 1.5)"/>
+<path d="M56 192 H72 A8 8 0 0 1 80 200 V216 A8 8 0 0 1 72 224 H56 A8 8 0 0 1 48 216 V200 A8 8 0 0 1 56 192 Z M184 192 H200 A8 8 0 0 1 208 200 V216 A8 8 0 0 1 200 224 H184 A8 8 0 0 1 176 216 V200 A8 8 0 0 1 184 192 Z" fill="#000000" opacity="0.3" filter="url(#softd)" transform="translate(0 6)"/>
+<path d="M56 192 H72 A8 8 0 0 1 80 200 V216 A8 8 0 0 1 72 224 H56 A8 8 0 0 1 48 216 V200 A8 8 0 0 1 56 192 Z M184 192 H200 A8 8 0 0 1 208 200 V216 A8 8 0 0 1 200 224 H184 A8 8 0 0 1 176 216 V200 A8 8 0 0 1 184 192 Z" fill="#000000" opacity="0.30" filter="url(#contactd)" transform="translate(0 1.5)"/>
+<path d="M48 168 V96 A64 64 0 0 1 112 32 H144 A64 64 0 0 1 208 96 V168 A8 8 0 0 1 200 176 H184 A8 8 0 0 1 176 168 V152 A8 8 0 0 0 168 144 H88 A8 8 0 0 0 80 152 V168 A8 8 0 0 1 72 176 H56 A8 8 0 0 1 48 168 Z M80 106 V96 A32 32 0 0 1 112 64 H144 A32 32 0 0 1 176 96 V106 A8 8 0 0 1 168 114 H88 A8 8 0 0 1 80 106 Z" fill-rule="evenodd" fill="url(#bodyd)"/>
+<g clip-path="url(#inBodyd)">
+  <rect x="0" y="0" width="256" height="256" fill="url(#sheend)"/>
+  <path d="M48 168 V96 A64 64 0 0 1 112 32 H144 A64 64 0 0 1 208 96 V168 A8 8 0 0 1 200 176 H184 A8 8 0 0 1 176 168 V152 A8 8 0 0 0 168 144 H88 A8 8 0 0 0 80 152 V168 A8 8 0 0 1 72 176 H56 A8 8 0 0 1 48 168 Z M80 106 V96 A32 32 0 0 1 112 64 H144 A32 32 0 0 1 176 96 V106 A8 8 0 0 1 168 114 H88 A8 8 0 0 1 80 106 Z" fill="none" stroke="url(#rimd)" stroke-width="2"/>
+</g>
+<path d="M56 192 H72 A8 8 0 0 1 80 200 V216 A8 8 0 0 1 72 224 H56 A8 8 0 0 1 48 216 V200 A8 8 0 0 1 56 192 Z M184 192 H200 A8 8 0 0 1 208 200 V216 A8 8 0 0 1 200 224 H184 A8 8 0 0 1 176 216 V200 A8 8 0 0 1 184 192 Z" fill="url(#polesd)"/>
+<g clip-path="url(#inPolesd)">
+  <rect x="0" y="180" width="256" height="48" fill="url(#sheend)"/>
+  <path d="M56 192 H72 A8 8 0 0 1 80 200 V216 A8 8 0 0 1 72 224 H56 A8 8 0 0 1 48 216 V200 A8 8 0 0 1 56 192 Z M184 192 H200 A8 8 0 0 1 208 200 V216 A8 8 0 0 1 200 224 H184 A8 8 0 0 1 176 216 V200 A8 8 0 0 1 184 192 Z" fill="none" stroke="url(#rimd)" stroke-width="2"/>
+</g>
+</g></svg>
