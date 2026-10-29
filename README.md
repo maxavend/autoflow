@@ -26,7 +26,7 @@ Luego ejecútalo desde **Plugins → Development → Autoflow · Smart Connector
 | --- | --- |
 | Conectar dos elementos | Clic en el origen, Shift+clic en el destino → **Copy connector** → **⌘V** (Ctrl+V en Windows) en el lienzo. El conector copiado se crea con el estilo y los lados elegidos en el panel; sigue en el portapapeles, así que basta cambiar la selección y volver a pulsar ⌘V. |
 | Lado de salida y entrada | Cada casilla (**Source**, **Target**) tiene una cuadrícula de FigUI3 que representa el elemento: el punto de cada borde fija el lado (arriba, derecha, abajo, izquierda) y el del centro es automático; debajo se lee el lado elegido. Con un conector seleccionado aparece la misma tarjeta: los puntos cambian sus lados y el nombre lleva al elemento en el lienzo. |
-| Capas anidadas | ⌘/Ctrl+clic para seleccionar un botón dentro de una pantalla o una subcapa de instancia. |
+| Capas anidadas | ⌘/Ctrl+clic para seleccionar un botón dentro de una pantalla, un componente o una instancia. Figma no deja enganchar conectores a capas dentro de una instancia: el conector se engancha a la instancia real más cercana y apunta al botón (avisa con un mensaje). |
 | Flujos de 3+ elementos | Selecciónalos y elige **One after another** (A→B→C) o **All from the first** (A→B, A→C). El panel muestra los conectores que creará **⌘V**; el botón de invertir cambia la dirección. |
 | Editar | Selecciona un conector: barra estilo FigJam con color, trazo (grosor y estilo de línea), etiqueta (T), punta inicial, tipo de trazado y punta final. Anclajes, esquinas, hex exacto y tipografía en **More options**. Selección múltiple = edición en lote. |
 | Prototipo | Con un conector seleccionado, **⋯ → Create prototype interaction** añade `On click → Navigate` real al origen. |

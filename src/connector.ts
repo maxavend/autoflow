@@ -7,7 +7,8 @@ import {
   type ConnectorView, type Endpoint, type Kind, type Patch, type Style,
 } from './model.ts';
 import {
-  CAP_TO_FIGMA, capFromFigma, dashFromPattern, dashPattern, endpointSpec, KIND_TO_FIGMA, kindFromFigma, sideOf,
+  CAP_TO_FIGMA, capFromFigma, dashFromPattern, dashPattern, endpointSpec, facing, KIND_TO_FIGMA, kindFromFigma, pointOn, sideOf,
+  type Box,
 } from './plan.ts';
 
 export const isConnector = (n: BaseNode | null): n is ConnectorNode => !!n && n.type === 'CONNECTOR';
@@ -135,14 +136,41 @@ export function applyKind(c: ConnectorNode, k: Kind) {
   c.connectorLineType = KIND_TO_FIGMA[k];
 }
 
-export async function setEnd(c: ConnectorNode, which: 'from' | 'to', end: Endpoint) {
-  if (!end.id) return;
+// Layers inside an instance (ids like "I12:3;4:5") are not nodes of their own,
+// and Figma refuses them as endpoints ("Invalid endpointNodeId").
+const insideInstance = (n: BaseNode) => n.id.includes(';');
+const boxOf = (n: BaseNode) => ('absoluteBoundingBox' in n ? n.absoluteBoundingBox : null);
+
+// Attach to the layer, or to the closest ancestor Figma accepts, aiming the
+// end at the layer itself (on the side facing `toward` when side is auto).
+// Returns the node attached to.
+export async function setEnd(c: ConnectorNode, which: 'from' | 'to', end: Endpoint, toward: Box | null = null): Promise<SceneNode | null> {
+  if (!end.id) return null;
   const n = await figma.getNodeByIdAsync(end.id);
-  if (!n) return;
-  const { w, h } = size(n);
-  const spec = endpointSpec(end.id, end.side, end.t, w, h);
-  if (which === 'from') c.connectorStart = spec;
-  else c.connectorEnd = spec;
+  if (!n) return null;
+  const box = boxOf(n);
+  const side = end.side !== 'auto' ? end.side : box && toward ? facing(box, toward) : null;
+  let refused: unknown = null;
+  for (let cur: BaseNode | null = n; cur && cur.type !== 'PAGE' && cur.type !== 'DOCUMENT'; cur = cur.parent) {
+    if (insideInstance(cur)) continue;
+    const outer = boxOf(cur);
+    const { w, h } = size(cur);
+    const plain = endpointSpec(cur.id, end.side, end.t, w, h);
+    // Aimed at the layer inside first; the parent's own anchor if Figma refuses that point.
+    const specs = cur !== n && box && outer && side
+      ? [{ endpointNodeId: cur.id, position: pointOn(box, outer, side, end.t) }, plain]
+      : [plain];
+    for (const spec of specs) {
+      try {
+        if (which === 'from') c.connectorStart = spec;
+        else c.connectorEnd = spec;
+        return cur as SceneNode;
+      } catch (err) {
+        refused = refused || err;
+      }
+    }
+  }
+  throw refused || new Error('Invalid endpoint');
 }
 
 // Remember the ids we attached, to tell a detached connector apart from a

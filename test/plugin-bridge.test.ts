@@ -67,19 +67,33 @@ function frame(id: string, name: string, x: number, parent: Fake = page): Fake {
 }
 let frames = 500;
 
+// Layers Figma refuses as connector endpoints (it throws on the setter).
+const refused = new Set<string>();
+function endpoint(n: Fake, key: 'connectorStart' | 'connectorEnd', first: unknown) {
+  let value = first;
+  Object.defineProperty(n, key, {
+    enumerable: true,
+    get: () => value,
+    set: (v: { endpointNodeId?: string }) => {
+      if (v.endpointNodeId && refused.has(v.endpointNodeId)) throw new Error(`in set_${key}: Invalid endpointNodeId`);
+      value = v;
+    },
+  });
+}
+
 let seq = 100;
 function seed(parent: Fake): Fake {
   const id = `9:${++seq}`;
   const n: Fake = {
     id, type: 'CONNECTOR', name: 'Autoflow connector', parent, removed: false,
-    connectorStart: { position: { x: 0, y: 0 } },
-    connectorEnd: { position: { x: 160, y: 0 } },
     connectorLineType: 'ELBOWED', connectorStartStrokeCap: 'NONE', connectorEndStrokeCap: 'ARROW_LINES',
     strokes: [], strokeWeight: 1, dashPattern: [], cornerRadius: 24,
     text: { characters: '', fontName: { family: 'Inter', style: 'Medium' }, fontSize: 16, fills: [] },
     remove() { n.removed = true; },
     ...plugData(),
   };
+  endpoint(n, 'connectorStart', { position: { x: 0, y: 0 } });
+  endpoint(n, 'connectorEnd', { position: { x: 160, y: 0 } });
   (n.setSharedPluginData as (a: string, b: string, c: string) => void)('autoflow', 'seed', '1');
   nodes.set(id, n);
   return n;
@@ -222,6 +236,69 @@ test('paste with two elements selected: one connector A → B on the page, extra
   assert.equal((c.getSharedPluginData as (a: string, b: string) => string)('autoflow', 'seed'), '');
   assert.deepEqual(page.selection, [c]);
   assert.ok(notices.some((n) => n.message === 'Connector created'));
+});
+
+test('a layer Figma refuses as an endpoint: attached to its parent, aimed at the layer', async () => {
+  const screen = frame('2:10', 'Checkout', 0);
+  const button = frame('2:11', 'Pay button', 0, screen);
+  button.absoluteBoundingBox = { x: 20, y: 300, width: 160, height: 48 };
+  const b = frame('2:12', 'Done', 400);
+  refused.add(button.id);
+  const before = notices.length;
+  select(button);
+  select(button, b);
+  const [c] = (await paste([button, b])).filter((n) => !n.removed);
+  // Right side of the button (Done is to the right), in Checkout's coordinates.
+  assert.deepEqual(c.connectorStart, { endpointNodeId: '2:10', position: { x: 180, y: 324 } });
+  assert.deepEqual(c.connectorEnd, { endpointNodeId: '2:12', magnet: 'AUTO' });
+  assert.equal(c.name, 'Pay button → Done');
+  assert.deepEqual(JSON.parse((c.getSharedPluginData as (a: string, b: string) => string)('autoflow', 'conn')), { from: '2:10', to: '2:12' });
+  assert.ok(notices.slice(before).some((n) => !n.error && /“Pay button” directly, so the connector is attached to “Checkout”/.test(n.message)));
+  refused.delete(button.id);
+});
+
+test('layers inside an instance attach to the instance; instances inside components attach directly', async () => {
+  const card = frame('2:20', 'Card', 0);
+  card.type = 'INSTANCE';
+  const icon = frame('I2:20;1:5', 'Icon', 0, card);
+  icon.absoluteBoundingBox = { x: 0, y: 0, width: 40, height: 40 };
+  const component = frame('2:22', 'Plan', 0);
+  component.type = 'COMPONENT';
+  component.absoluteBoundingBox = { x: 0, y: 600, width: 200, height: 400 };
+  const badge = frame('2:23', 'Badge', 0, component);
+  badge.type = 'INSTANCE';
+  badge.absoluteBoundingBox = { x: 0, y: 600, width: 200, height: 400 };
+  select(icon);
+  select(icon, badge);
+  const [c] = (await paste([icon, badge])).filter((n) => !n.removed);
+  // Bottom of the icon (the badge is below), in the instance's coordinates.
+  assert.deepEqual(c.connectorStart, { endpointNodeId: '2:20', position: { x: 20, y: 40 } });
+  assert.deepEqual(c.connectorEnd, { endpointNodeId: '2:23', magnet: 'AUTO' });
+  assert.equal(c.name, 'Icon → Badge');
+});
+
+test('a button inside nested instances links to a button inside another screen', async () => {
+  const benefits = frame('3:1', 'Beneficios', 0);
+  const carousel = frame('3:2', 'Carousel', 0, benefits);
+  carousel.type = 'INSTANCE';
+  carousel.absoluteBoundingBox = { x: 0, y: 1000, width: 600, height: 200 };
+  const card = frame('I3:2;5:1', 'Card Farmacias', 0, carousel);
+  card.type = 'INSTANCE';
+  const more = frame('I3:2;5:1;7:3', 'Ver más', 0, card);
+  more.absoluteBoundingBox = { x: 236, y: 1100, width: 132, height: 44 };
+  const home = frame('3:3', 'Home', 1100);
+  const bill = frame('3:4', 'Boleta', 1100, home);
+  bill.type = 'INSTANCE';
+  bill.absoluteBoundingBox = { x: 1230, y: 570, width: 256, height: 200 };
+  const pay = frame('I3:4;6:2', 'Pagar boleta', 1100, bill);
+  pay.absoluteBoundingBox = { x: 1363, y: 722, width: 123, height: 48 };
+  select(more);
+  select(more, pay);
+  const [c] = (await paste([more, pay])).filter((n) => !n.removed);
+  // Each end on the closest real instance, aimed at its button's facing side.
+  assert.deepEqual(c.connectorStart, { endpointNodeId: '3:2', position: { x: 368, y: 122 } });
+  assert.deepEqual(c.connectorEnd, { endpointNodeId: '3:4', position: { x: 133, y: 176 } });
+  assert.equal(c.name, 'Ver más → Pagar boleta');
 });
 
 test('click order wins and three elements chain A → B → C', async () => {

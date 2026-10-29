@@ -45,6 +45,27 @@ export function endpointSpec(id: string, side: SideOpt, t: number, w: number, h:
   return { endpointNodeId: id, position: { x, y } };
 }
 
+export type Box = { x: number; y: number; width: number; height: number };
+
+// Side of `a` that faces `b` (centres compared, wider gap wins).
+export function facing(a: Box, b: Box): Side {
+  const dx = b.x + b.width / 2 - (a.x + a.width / 2);
+  const dy = b.y + b.height / 2 - (a.y + a.height / 2);
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'bottom' : 'top';
+}
+
+// Point on a side of `inner`, in the coordinates of `outer` (both absolute):
+// aims an endpoint attached to `outer` at a layer inside it.
+export function pointOn(inner: Box, outer: Box, side: Side, t: number): { x: number; y: number } {
+  const x = inner.x - outer.x;
+  const y = inner.y - outer.y;
+  return {
+    x: side === 'left' ? x : side === 'right' ? x + inner.width : x + t * inner.width,
+    y: side === 'top' ? y : side === 'bottom' ? y + inner.height : y + t * inner.height,
+  };
+}
+
 // Figma endpoint → side + t (the inverse of endpointSpec).
 export function sideOf(ep: { magnet?: string; position?: { x: number; y: number } }, w: number, h: number): { side: SideOpt; t: number } {
   if (ep.magnet) {

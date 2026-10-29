@@ -183,15 +183,19 @@ async function attach(c: ConnectorNode, a: SceneNode | null, b: SceneNode | null
   applyKind(c, defaults.kind);
   applyStyle(c, defaults.style);
   await applyLabel(c, '', defaults.style);
-  if (a) await setEnd(c, 'from', { id: a.id, side: fromSide, t: 0.5 });
-  if (b) await setEnd(c, 'to', { id: b.id, side: toSide, t: 0.5 });
-  else if (a && a.absoluteBoundingBox) {
+  const from = a && await setEnd(c, 'from', { id: a.id, side: fromSide, t: 0.5 }, b && b.absoluteBoundingBox);
+  const to = b && await setEnd(c, 'to', { id: b.id, side: toSide, t: 0.5 }, a && a.absoluteBoundingBox);
+  if (!b && a && a.absoluteBoundingBox) {
     // Only a source: leave the end free to its right, ready to drag.
     const r = a.absoluteBoundingBox;
     c.connectorEnd = { position: { x: r.x + r.width + 160, y: r.y + r.height / 2 } };
   }
-  c.name = a && b ? `${a.name} → ${b.name}` : t('connector');
-  remember(c, a ? a.id : '', b ? b.id : '');
+  c.name = a && b && from && to ? `${a.name} → ${b.name}` : t('connector');
+  remember(c, from ? from.id : '', to ? to.id : '');
+  // Ends Figma would not take, attached to a parent instead.
+  return [[a, from], [b, to]]
+    .filter(([want, got]) => want && got && want.id !== got.id)
+    .map(([want, got]) => t('endpoint.parent', { name: want!.name, parent: got!.name }));
 }
 
 async function adopt(ids: string[]) {
@@ -209,10 +213,11 @@ async function adopt(ids: string[]) {
     : [[nodes[0] || null, null]];
 
   const done: ConnectorNode[] = [];
+  const notes: string[] = [];
   for (let i = 0; i < seeds.length; i++) {
     const c = seeds[i];
     if (i < pairs.length) {
-      await attach(c, pairs[i][0], pairs[i][1], planFrom, planTo);
+      notes.push(...await attach(c, pairs[i][0], pairs[i][1], planFrom, planTo));
       done.push(c);
     } else {
       c.remove(); // Figma pastes one copy per selected element; we need one per link.
@@ -225,7 +230,9 @@ async function adopt(ids: string[]) {
   picked = [];
   if (done.length) figma.currentPage.selection = done;
 
-  if (missing) {
+  if (notes.length) {
+    toast(notes[0]);
+  } else if (missing) {
     toast(t('created.missing', { done: done.length, missing }));
   } else if (pairs[0] && pairs[0][1]) {
     toast(plural(t, 'created', done.length));

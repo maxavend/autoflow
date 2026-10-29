@@ -166,6 +166,7 @@ const en = {
   'created.missing': '{done} created; {missing} missing. Select more elements or paste again.',
   'pasted.free': 'Connector pasted. Select a source and a target before {paste} to link them.',
   'endpoint.gone': 'That end is no longer on this page.',
+  'endpoint.parent': 'Figma can’t attach to “{name}” directly, so the connector is attached to “{parent}” and points at it.',
   'connector.gone': 'The connector no longer exists.',
   'endpoint.missing': 'end not found',
   'prototype.ok': '{n} prototype interaction(s): On click → Navigate',

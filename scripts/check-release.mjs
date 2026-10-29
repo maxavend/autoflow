@@ -37,7 +37,7 @@ if (existsSync(join(root, manifest.ui))) {
   const allowed = ['http://www.w3.org/', 'https://fig.local'];
   const urls = [...new Set(html.match(/https?:\/\/[a-zA-Z0-9.-]+[^\s"'`)<>]*/g) ?? [])]
     .filter((url) => !allowed.some((a) => url.startsWith(a)))
-    .filter((url) => !/^https:\/\/github\.com\//.test(url)); // license notices
+    .filter((url) => !/^https:\/\/(github\.com|polyformproject\.org)\//.test(url)); // license notices
   const allowsNetwork = manifest.networkAccess.allowedDomains.some((d) => d !== 'none');
   check(allowsNetwork || urls.length === 0, `la UI no carga recursos externos${urls.length ? `: ${urls.slice(0, 3).join(', ')}` : ''}`);
   // FigUI3 (Rogie King; editor module under PolyForm Shield) and the UI3 icons (Yuan Qing Lim)

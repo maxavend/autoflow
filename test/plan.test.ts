@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { capFromFigma, dashFromPattern, dashPattern, endpointSpec, mergeOrder, pairsFor, sideOf, sortBy } from '../src/plan.ts';
+import { capFromFigma, dashFromPattern, dashPattern, endpointSpec, facing, mergeOrder, pairsFor, pointOn, sideOf, sortBy } from '../src/plan.ts';
 
 test('pairs: pair, chain and fan; fewer than two → none', () => {
   assert.deepEqual(pairsFor(['a', 'b', 'c'], 'pair'), [['a', 'b']]);
@@ -34,6 +34,17 @@ test('anchors read back to the same side and position', () => {
   assert.deepEqual(sideOf({ magnet: 'AUTO' }, 200, 100), { side: 'auto', t: 0.5 });
   assert.deepEqual(sideOf({ magnet: 'CENTER' }, 200, 100), { side: 'auto', t: 0.5 });
   assert.deepEqual(sideOf({ position: { x: 90, y: 40 } }, 200, 100), { side: 'auto', t: 0.5 }); // inside
+});
+
+test('facing side and points aimed at a layer inside its parent', () => {
+  const box = { x: 100, y: 100, width: 100, height: 50 };
+  assert.equal(facing(box, { x: 400, y: 120, width: 10, height: 10 }), 'right');
+  assert.equal(facing(box, { x: 0, y: 100, width: 10, height: 50 }), 'left');
+  assert.equal(facing(box, { x: 120, y: 500, width: 10, height: 10 }), 'bottom');
+  assert.equal(facing(box, { x: 120, y: -300, width: 10, height: 10 }), 'top');
+  const outer = { x: 80, y: 60, width: 300, height: 300 };
+  assert.deepEqual(pointOn(box, outer, 'right', 0.5), { x: 120, y: 65 });
+  assert.deepEqual(pointOn(box, outer, 'top', 0.25), { x: 45, y: 40 });
 });
 
 test('dash patterns scale with weight and read back', () => {
