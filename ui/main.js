@@ -810,6 +810,7 @@ function render() {
   $('brokenText').textContent = plural(t, 'broken', s.stats.broken);
 
   $('pageEmpty').hidden = !!s.stats.broken;
+  $('protoRow').hidden = !s.stats.linked;
 
   $('secTool').hidden = !!conns;
   renderCreate();
@@ -1020,6 +1021,7 @@ function bindActions() {
   bindPorts();
   bindPresets();
   $('cleanBtn').addEventListener('click', () => run($('cleanBtn'), { type: 'clean' }));
+  $('protoBtn').addEventListener('click', () => run($('protoBtn'), { type: 'prototype' }));
   $('swapBtn').addEventListener('click', () => run($('swapBtn'), { type: 'swap', ids: ids() }));
   $('resetDefaults').addEventListener('click', () => run($('resetDefaults'), { type: 'reset-defaults' }));
   for (const [id, which] of [['selFrom', 'from'], ['selTo', 'to']]) {

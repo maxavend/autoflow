@@ -41,6 +41,7 @@ const page: Fake = {
   setRelaunchData: () => {},
   appendChild: (n: Fake) => { n.parent = page; },
   getSharedPluginData: () => '',
+  flowStartingPoints: [] as { nodeId: string; name: string }[],
 };
 Object.defineProperty(page, 'children', { get: () => children(page) });
 
@@ -56,6 +57,7 @@ function frame(id: string, name: string, x: number, parent: Fake = page): Fake {
   const n: Fake = {
     id, type: 'FRAME', name, parent, removed: false, width: 200, height: 400, x, y: 0,
     absoluteBoundingBox: { x, y: 0, width: 200, height: 400 }, reactions: [],
+    async setReactionsAsync(r: unknown[]) { n.reactions = r; },
     remove() { n.removed = true; for (const c of children(n)) c.removed = true; },
     resize(w: number, h: number) { n.width = w; n.height = h; },
     appendChild(c: Fake) { c.parent = n; },
@@ -180,7 +182,7 @@ test('ready → fonts grouped by family (sorted, deduped) + state + ok', async (
     { family: 'Roboto', styles: ['Bold'] },
   ]);
   const state = posted.slice(from).find((m) => m.type === 'state') as Msg & { stats: unknown; connectors: unknown[] };
-  assert.deepEqual(state.stats, { total: 0, broken: 0 });
+  assert.deepEqual(state.stats, { total: 0, broken: 0, linked: 0 });
   assert.deepEqual(state.connectors, []);
   assert.deepEqual((state as unknown as { presets: unknown[] }).presets, []);
 });
@@ -316,6 +318,31 @@ test('a button inside nested instances links to a button inside another screen',
   assert.equal((await send({ type: 'swap', ids: [c.id] }))?.ok, true);
   select(c);
   assert.deepEqual(ends(), ['Pagar boleta', 'top', 'Ver más', 'right']);
+});
+
+test('Make prototype: every linked connector on the page → On click → Navigate, flow starts at the first screen', async () => {
+  for (const n of (page.findAll as (fn: (n: Fake) => boolean) => Fake[])(() => true)) n.removed = true;
+  const login = frame('6:1', 'Login', 0);
+  const home = frame('6:2', 'Home', 400);
+  const shell = frame('6:3', 'Web Shell', 400, home);
+  shell.type = 'INSTANCE';
+  const pay = frame('I6:3;1:1', 'Pagar boleta', 400, shell);
+  const detail = frame('6:4', 'Detalle', 800);
+  select(login, home);
+  await paste([login, home]);
+  select(pay, detail);
+  await paste([pay, detail]);
+  const res = await send({ type: 'prototype' });
+  assert.equal(res?.ok, true);
+  const dest = (n: Fake) => (n.reactions as { actions: { destinationId: string }[] }[]).map((r) => r.actions[0].destinationId);
+  assert.deepEqual(dest(login), ['6:2']);
+  assert.deepEqual(dest(pay), ['6:4'], 'the click is on the button inside the instance');
+  assert.deepEqual(page.flowStartingPoints, [{ nodeId: '6:1', name: 'Login' }]);
+  assert.match(String(res?.message), /^2 prototype interaction\(s\).*Flow starts at “Login”/);
+  // Again: no duplicates, the existing flow is kept.
+  await send({ type: 'prototype' });
+  assert.deepEqual(dest(login), ['6:2']);
+  assert.equal((page.flowStartingPoints as unknown[]).length, 1);
 });
 
 test('click order wins and three elements chain A → B → C', async () => {

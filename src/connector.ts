@@ -117,12 +117,12 @@ export async function readView(c: ConnectorNode): Promise<ConnectorView> {
   return { from, to, kind: kindFromFigma(c.connectorLineType), style, label: text.characters, broken: isBroken(c) };
 }
 
+export const isAttached = (ep: ConnectorEndpoint) => !!(ep as FigmaEnd).endpointNodeId;
+
 // Created attached (we stored both ids) but an end has lost its element.
 export function isBroken(c: ConnectorNode): boolean {
   if (!c.getSharedPluginData(NS, KEY)) return false;
-  const s = c.connectorStart as FigmaEnd;
-  const e = c.connectorEnd as FigmaEnd;
-  return !s.endpointNodeId || !e.endpointNodeId;
+  return !isAttached(c.connectorStart) || !isAttached(c.connectorEnd);
 }
 
 // ------------------------------------------------------------------- writing

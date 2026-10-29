@@ -108,6 +108,8 @@ const en = {
   'show': 'Show',
   'delete': 'Delete',
   'page.ok': 'All good.',
+  'proto.hint': 'Turn every connector into On click → Navigate, then press ▶ Present to click through.',
+  'proto.make': 'Make prototype',
 
   'side.auto': 'Automatic',
   'side.top': 'Top',
@@ -170,6 +172,8 @@ const en = {
   'connector.gone': 'The connector no longer exists.',
   'endpoint.missing': 'end not found',
   'prototype.ok': '{n} prototype interaction(s): On click → Navigate',
+  'prototype.start': 'Flow starts at “{name}”.',
+  'prototype.none': 'There are no connectors with both ends on this page.',
   'prototype.skipped': '{n} interaction(s) created; skipped: {list}',
   'loose.deleted.one': '1 loose connector deleted',
   'loose.deleted.other': '{n} loose connectors deleted',

@@ -8,7 +8,7 @@
 // frames it landed in, attach it source → target and apply the style.
 
 import {
-  applyKind, applyLabel, applyPatch, applyStyle, containerFor, isBroken, isConnector, isSeed,
+  applyKind, applyLabel, applyPatch, applyStyle, containerFor, isAttached, isBroken, isConnector, isSeed,
   pageOf, readView, remember, screenOf, setEnd, swapEnds,
 } from './connector.ts';
 import {
@@ -133,9 +133,11 @@ async function nameOf(id: string): Promise<string> {
   return n ? n.name : '—';
 }
 
+const linked = (c: ConnectorNode) => isAttached(c.connectorStart) && isAttached(c.connectorEnd);
+
 function stats() {
   const all = figma.currentPage.findAllWithCriteria({ types: ['CONNECTOR'] });
-  return { total: all.length, broken: all.filter(isBroken).length };
+  return { total: all.length, broken: all.filter(isBroken).length, linked: all.filter(linked).length };
 }
 
 async function pushState() {
@@ -256,9 +258,11 @@ async function forEachConnector(ids: string[], fn: (c: ConnectorNode) => Promise
   }
 }
 
-async function addPrototypeLink(ids: string[]): Promise<{ ok: number; skipped: string[] }> {
+async function addPrototypeLink(ids: string[]): Promise<{ ok: number; skipped: string[]; start: string }> {
   let ok = 0;
   const skipped: string[] = [];
+  const starts: SceneNode[] = [];
+  const dests = new Set<string>();
   for (const id of ids) {
     const c = await connectorById(id);
     if (!c) continue;
@@ -274,6 +278,8 @@ async function addPrototypeLink(ids: string[]): Promise<{ ok: number; skipped: s
       skipped.push(src.name);
       continue;
     }
+    starts.push(screenOf(src as SceneNode));
+    dests.add(dest.id);
     const has = src.reactions.some((r) => (r.actions || []).some((a) => a.type === 'NODE' && a.destinationId === dest.id));
     if (has) { ok++; continue; }
     const reaction: Reaction = {
@@ -289,7 +295,22 @@ async function addPrototypeLink(ids: string[]): Promise<{ ok: number; skipped: s
     await src.setReactionsAsync(src.reactions.concat([reaction]));
     ok++;
   }
-  return { ok, skipped };
+  return { ok, skipped, start: addFlowStart(starts, dests) };
+}
+
+// Without a flow, Present has nowhere to begin: start at the first screen that
+// links out and nothing links to. Returns its name, or '' if none was added.
+function addFlowStart(starts: SceneNode[], dests: Set<string>): string {
+  const page = figma.currentPage;
+  if (!starts.length || page.flowStartingPoints.length) return '';
+  const first = starts.find((n) => !dests.has(n.id)) || starts[0];
+  if (first.type !== 'FRAME' && first.type !== 'COMPONENT' && first.type !== 'INSTANCE') return '';
+  try {
+    page.flowStartingPoints = [{ nodeId: first.id, name: first.name }];
+    return first.name;
+  } catch {
+    return ''; // Not a valid starting frame: the interactions still work.
+  }
 }
 
 // Every UI message may carry a requestId; the plugin answers each one with a
@@ -302,7 +323,7 @@ type UIMessage = { requestId?: string } & (
   | { type: 'swap'; ids: string[] }
   | { type: 'delete'; ids: string[] }
   | { type: 'select'; id: string; which: 'from' | 'to' }
-  | { type: 'prototype'; ids: string[] }
+  | { type: 'prototype'; ids?: string[] } // no ids: every linked connector on the page
   | { type: 'defaults'; defaults: Defaults }
   | { type: 'defaults-from'; id: string }
   | { type: 'reset-defaults' }
@@ -365,11 +386,14 @@ async function handle(msg: UIMessage): Promise<string> {
       break;
     }
     case 'prototype': {
-      const r = await addPrototypeLink(msg.ids);
+      const ids = msg.ids || figma.currentPage.findAllWithCriteria({ types: ['CONNECTOR'] }).filter(linked).map((c) => c.id);
+      if (!ids.length) throw new Error(t('prototype.none'));
+      const r = await addPrototypeLink(ids);
       commit();
       result = r.skipped.length
         ? t('prototype.skipped', { n: r.ok, list: r.skipped.join(', ') })
         : t('prototype.ok', { n: r.ok });
+      if (r.start) result += ' ' + t('prototype.start', { name: r.start });
       if (r.skipped.length && !r.ok) throw new Error(result);
       toast(result);
       break;
