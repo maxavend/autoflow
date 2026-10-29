@@ -4,6 +4,7 @@
 
 export const NS = 'autoflow';
 export const KEY = 'conn';  // { from, to } ids at creation, to tell detached connectors apart
+export const AIM = 'aim';   // { from, to } layer each end points at inside the node it is attached to
 export const SEED = 'seed'; // set on the clipboard payload: marks a fresh paste to adopt
 
 export type Kind = 'elbow' | 'curve' | 'straight';

@@ -299,6 +299,23 @@ test('a button inside nested instances links to a button inside another screen',
   assert.deepEqual(c.connectorStart, { endpointNodeId: '3:2', position: { x: 368, y: 122 } });
   assert.deepEqual(c.connectorEnd, { endpointNodeId: '3:4', position: { x: 133, y: 176 } });
   assert.equal(c.name, 'Ver más → Pagar boleta');
+
+  // The panel shows the buttons, not the instances, and side edits stay on them.
+  type End = { id: string; side: string; t: number };
+  const ends = () => {
+    const state = posted.filter((m) => m.type === 'state').slice(-1)[0] as unknown as { connectors: { fromName: string; toName: string; data: { from: End; to: End } }[] };
+    const [v] = state.connectors;
+    return [v.fromName, v.data.from.side, v.toName, v.data.to.side];
+  };
+  assert.deepEqual(ends(), ['Ver más', 'right', 'Pagar boleta', 'left']);
+  assert.equal((await send({ type: 'patch', ids: [c.id], patch: { fromSide: 'bottom', toSide: 'top' } }))?.ok, true);
+  assert.deepEqual(c.connectorStart, { endpointNodeId: '3:2', position: { x: 302, y: 144 } });
+  assert.deepEqual(c.connectorEnd, { endpointNodeId: '3:4', position: { x: 194.5, y: 152 } });
+  assert.equal((await send({ type: 'patch', ids: [c.id], patch: { fromSide: 'auto' } }))?.ok, true);
+  assert.deepEqual(c.connectorStart, { endpointNodeId: '3:2', position: { x: 368, y: 122 } }, 'auto faces the other button');
+  assert.equal((await send({ type: 'swap', ids: [c.id] }))?.ok, true);
+  select(c);
+  assert.deepEqual(ends(), ['Pagar boleta', 'top', 'Ver más', 'right']);
 });
 
 test('click order wins and three elements chain A → B → C', async () => {

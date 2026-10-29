@@ -3,7 +3,7 @@
 // endpoints, style and label.
 
 import {
-  hexToRgb, KEY, normalizeStyle, NS, rgbToHex, SEED,
+  AIM, hexToRgb, KEY, normalizeStyle, NS, rgbToHex, SEED,
   type ConnectorView, type Endpoint, type Kind, type Patch, type Style,
 } from './model.ts';
 import {
@@ -46,16 +46,45 @@ export function screenOf(n: SceneNode): SceneNode {
   return cur;
 }
 
+const boxOf = (n: BaseNode) => ('absoluteBoundingBox' in n ? n.absoluteBoundingBox : null);
 const size = (n: BaseNode | null) => (n && 'width' in n ? { w: n.width, h: n.height } : { w: 0, h: 0 });
 
 // ------------------------------------------------------------------- reading
 
 type FigmaEnd = ConnectorEndpoint & { endpointNodeId?: string; magnet?: string; position?: { x: number; y: number } };
 
-async function readEnd(ep: FigmaEnd): Promise<Endpoint> {
+// Layer each end is aimed at, when attached to a parent that contains it.
+type Aim = { from: string; to: string };
+function readAim(c: ConnectorNode): Aim {
+  try {
+    const d = JSON.parse(c.getSharedPluginData(NS, AIM) || '{}') as Partial<Aim>;
+    return { from: d.from || '', to: d.to || '' };
+  } catch {
+    return { from: '', to: '' };
+  }
+}
+function writeAim(c: ConnectorNode, aim: Aim) {
+  c.setSharedPluginData(NS, AIM, aim.from || aim.to ? JSON.stringify(aim) : '');
+}
+
+const contains = (outer: BaseNode, n: BaseNode) => {
+  for (let cur = n.parent; cur; cur = cur.parent) if (cur.id === outer.id) return true;
+  return false;
+};
+
+async function readEnd(ep: FigmaEnd, aim: string): Promise<Endpoint> {
   const id = ep.endpointNodeId || '';
   if (!id) return { id: '', side: 'auto', t: 0.5 };
   const n = await figma.getNodeByIdAsync(id);
+  // Aimed at a layer inside: the end is that layer, its side read on the layer's own box.
+  const layer = n && aim ? await figma.getNodeByIdAsync(aim) : null;
+  if (n && layer && contains(n, layer)) {
+    const ib = boxOf(layer);
+    const ob = boxOf(n);
+    if (!ib || !ob || !ep.position) return { id: layer.id, side: 'auto', t: 0.5 };
+    const p = { x: ep.position.x + ob.x - ib.x, y: ep.position.y + ob.y - ib.y };
+    return { id: layer.id, ...sideOf({ position: p }, ib.width, ib.height) };
+  }
   const { w, h } = size(n);
   return { id, ...sideOf(ep, w, h) };
 }
@@ -82,8 +111,9 @@ export async function readView(c: ConnectorNode): Promise<ConnectorView> {
     labelSize: typeof fontSize === 'number' ? fontSize : undefined,
     labelFont: fontName !== figma.mixed && fontName.family ? { family: fontName.family, style: fontName.style } : undefined,
   });
-  const from = await readEnd(c.connectorStart as FigmaEnd);
-  const to = await readEnd(c.connectorEnd as FigmaEnd);
+  const aim = readAim(c);
+  const from = await readEnd(c.connectorStart as FigmaEnd, aim.from);
+  const to = await readEnd(c.connectorEnd as FigmaEnd, aim.to);
   return { from, to, kind: kindFromFigma(c.connectorLineType), style, label: text.characters, broken: isBroken(c) };
 }
 
@@ -139,7 +169,6 @@ export function applyKind(c: ConnectorNode, k: Kind) {
 // Layers inside an instance (ids like "I12:3;4:5") are not nodes of their own,
 // and Figma refuses them as endpoints ("Invalid endpointNodeId").
 const insideInstance = (n: BaseNode) => n.id.includes(';');
-const boxOf = (n: BaseNode) => ('absoluteBoundingBox' in n ? n.absoluteBoundingBox : null);
 
 // Attach to the layer, or to the closest ancestor Figma accepts, aiming the
 // end at the layer itself (on the side facing `toward` when side is auto).
@@ -164,6 +193,7 @@ export async function setEnd(c: ConnectorNode, which: 'from' | 'to', end: Endpoi
       try {
         if (which === 'from') c.connectorStart = spec;
         else c.connectorEnd = spec;
+        writeAim(c, { ...readAim(c), [which]: cur !== n ? n.id : '' });
         return cur as SceneNode;
       } catch (err) {
         refused = refused || err;
@@ -186,11 +216,15 @@ export async function applyPatch(c: ConnectorNode, p: Patch) {
   if (p.kind) applyKind(c, p.kind);
   if (p.style) applyStyle(c, style);
   if (p.label !== undefined || (p.style && v.label)) await applyLabel(c, p.label ?? v.label, style);
+  const boxById = async (id: string) => {
+    const n = id ? await figma.getNodeByIdAsync(id) : null;
+    return n && boxOf(n);
+  };
   if (p.fromSide !== undefined || p.fromT !== undefined) {
-    await setEnd(c, 'from', { ...v.from, side: p.fromSide ?? v.from.side, t: p.fromT ?? v.from.t });
+    await setEnd(c, 'from', { ...v.from, side: p.fromSide ?? v.from.side, t: p.fromT ?? v.from.t }, await boxById(v.to.id));
   }
   if (p.toSide !== undefined || p.toT !== undefined) {
-    await setEnd(c, 'to', { ...v.to, side: p.toSide ?? v.to.side, t: p.toT ?? v.to.t });
+    await setEnd(c, 'to', { ...v.to, side: p.toSide ?? v.to.side, t: p.toT ?? v.to.t }, await boxById(v.from.id));
   }
 }
 
@@ -198,6 +232,8 @@ export function swapEnds(c: ConnectorNode) {
   const s = c.connectorStart;
   c.connectorStart = c.connectorEnd;
   c.connectorEnd = s;
+  const aim = readAim(c);
+  writeAim(c, { from: aim.to, to: aim.from });
   const raw = c.getSharedPluginData(NS, KEY);
   if (raw) {
     try {
