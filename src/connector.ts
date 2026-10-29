@@ -119,6 +119,11 @@ export async function readView(c: ConnectorNode): Promise<ConnectorView> {
 
 export const isAttached = (ep: ConnectorEndpoint) => !!(ep as FigmaEnd).endpointNodeId;
 
+// Where the click of a prototype link lives: the aimed layer, else the attached node.
+export function sourceId(c: ConnectorNode): string {
+  return readAim(c).from || (c.connectorStart as FigmaEnd).endpointNodeId || '';
+}
+
 // Created attached (we stored both ids) but an end has lost its element.
 export function isBroken(c: ConnectorNode): boolean {
   if (!c.getSharedPluginData(NS, KEY)) return false;

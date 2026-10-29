@@ -813,6 +813,9 @@ function render() {
 
   $('pageEmpty').hidden = !!s.stats.broken;
   $('protoRow').hidden = !s.stats.linked;
+  const inSel = s.stats.inSelection || 0;
+  $('protoHint').textContent = inSel ? plural(t, 'proto.sel', inSel) : t('proto.hint');
+  $('protoBtn').textContent = inSel ? t('proto.make.sel') : t('proto.make');
 
   $('secTool').hidden = !!conns;
   renderCreate();

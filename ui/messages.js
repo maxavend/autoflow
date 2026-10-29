@@ -109,8 +109,11 @@ const en = {
   'show': 'Show',
   'delete': 'Delete',
   'page.ok': 'All good.',
-  'proto.hint': 'Turn every connector into On click → Navigate, then press ▶ Present to click through.',
+  'proto.hint': 'Turn every connector on this page into On click → Navigate, then press ▶ Present to click through.',
+  'proto.sel.one': 'Turn the connector leaving your selection into On click → Navigate, then press ▶ Present.',
+  'proto.sel.other': 'Turn the {n} connectors leaving your selection into On click → Navigate, then press ▶ Present.',
   'proto.make': 'Make prototype',
+  'proto.make.sel': 'Make prototype from selection',
 
   'side.auto': 'Automatic',
   'side.top': 'Top',

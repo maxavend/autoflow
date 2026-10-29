@@ -182,7 +182,7 @@ test('ready → fonts grouped by family (sorted, deduped) + state + ok', async (
     { family: 'Roboto', styles: ['Bold'] },
   ]);
   const state = posted.slice(from).find((m) => m.type === 'state') as Msg & { stats: unknown; connectors: unknown[] };
-  assert.deepEqual(state.stats, { total: 0, broken: 0, linked: 0 });
+  assert.deepEqual(state.stats, { total: 0, broken: 0, linked: 0, inSelection: 0 });
   assert.deepEqual(state.connectors, []);
   assert.deepEqual((state as unknown as { presets: unknown[] }).presets, []);
 });
@@ -332,17 +332,48 @@ test('Make prototype: every linked connector on the page → On click → Naviga
   await paste([login, home]);
   select(pay, detail);
   await paste([pay, detail]);
+  select(); // nothing selected: the whole page
   const res = await send({ type: 'prototype' });
   assert.equal(res?.ok, true);
   const dest = (n: Fake) => (n.reactions as { actions: { destinationId: string }[] }[]).map((r) => r.actions[0].destinationId);
   assert.deepEqual(dest(login), ['6:2']);
   assert.deepEqual(dest(pay), ['6:4'], 'the click is on the button inside the instance');
   assert.deepEqual(page.flowStartingPoints, [{ nodeId: '6:1', name: 'Login' }]);
+  const [action] = (login.reactions as { actions: { transition: unknown; navigation: string }[] }[])[0].actions;
+  assert.deepEqual([action.navigation, action.transition], ['NAVIGATE', null], 'instant: no transition');
   assert.match(String(res?.message), /^2 prototype interaction\(s\).*Flow starts at “Login”/);
   // Again: no duplicates, the existing flow is kept.
   await send({ type: 'prototype' });
   assert.deepEqual(dest(login), ['6:2']);
   assert.equal((page.flowStartingPoints as unknown[]).length, 1);
+});
+
+test('Make prototype with a flow selected: only its connectors, its own starting point; old animated links become instant', async () => {
+  const wipe = () => { for (const n of (page.findAll as (fn: (n: Fake) => boolean) => Fake[])(() => true)) n.removed = true; };
+  wipe();
+  page.flowStartingPoints = [];
+  const a1 = frame('7:11', 'Onboarding 1', 0);
+  const a2 = frame('7:12', 'Onboarding 2', 400);
+  const b1 = frame('7:21', 'Cart', 0);
+  const b2 = frame('7:22', 'Checkout', 400);
+  select(a1, a2);
+  await paste([a1, a2]);
+  select(b1, b2);
+  await paste([b1, b2]);
+  page.flowStartingPoints = [{ nodeId: '7:99', name: 'Other flow' }];
+  // A link from an earlier version: Smart animate 0.3 s to Checkout.
+  b1.reactions = [{ trigger: { type: 'ON_CLICK' }, actions: [{ type: 'NODE', destinationId: '7:22', navigation: 'NAVIGATE', transition: { type: 'SMART_ANIMATE', easing: { type: 'EASE_OUT' }, duration: 0.3 } }] }];
+
+  select(b1, b2); // the whole Cart flow
+  const state = posted.filter((m) => m.type === 'state').slice(-1)[0] as unknown as { stats: { inSelection: number } };
+  assert.equal(state.stats.inSelection, 1);
+  const res = await send({ type: 'prototype' });
+  assert.match(String(res?.message), /^1 prototype interaction\(s\).*Flow starts at “Cart”/);
+  assert.deepEqual(a1.reactions, [], 'the other flow is untouched');
+  const actions = (b1.reactions as { actions: { destinationId: string; transition: unknown }[] }[]).flatMap((r) => r.actions);
+  assert.deepEqual(actions.map((x) => [x.destinationId, x.transition]), [['7:22', null]]);
+  assert.deepEqual(page.flowStartingPoints, [{ nodeId: '7:99', name: 'Other flow' }, { nodeId: '7:21', name: 'Cart' }]);
+  wipe();
 });
 
 test('click order wins and three elements chain A → B → C', async () => {

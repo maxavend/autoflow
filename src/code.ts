@@ -8,7 +8,7 @@
 // frames it landed in, attach it source → target and apply the style.
 
 import {
-  applyKind, applyLabel, applyPatch, applyStyle, containerFor, isAttached, isBroken, isConnector, isSeed,
+  applyKind, applyLabel, applyPatch, applyStyle, containerFor, isAttached, isBroken, isConnector, isSeed, sourceId,
   pageOf, readView, remember, screenOf, setEnd, swapEnds,
 } from './connector.ts';
 import {
@@ -135,9 +135,33 @@ async function nameOf(id: string): Promise<string> {
 
 const linked = (c: ConnectorNode) => isAttached(c.connectorStart) && isAttached(c.connectorEnd);
 
-function stats() {
+// "Select the whole flow": selected connectors, plus every linked connector
+// whose click (source) is inside a selected screen or layer.
+async function selectionConnectors(): Promise<ConnectorNode[]> {
+  const sel = figma.currentPage.selection;
+  if (!sel.length) return [];
+  const chosen = new Set(sel.filter(isConnector).map((c) => c.id));
+  const roots = new Set(sel.filter((n) => !isConnector(n)).map((n) => n.id));
+  const out: ConnectorNode[] = [];
+  for (const c of figma.currentPage.findAllWithCriteria({ types: ['CONNECTOR'] }).filter(linked)) {
+    if (chosen.has(c.id)) { out.push(c); continue; }
+    if (!roots.size) continue;
+    const id = sourceId(c);
+    let n: BaseNode | null = id ? await figma.getNodeByIdAsync(id) : null;
+    while (n && !roots.has(n.id)) n = n.parent;
+    if (n) out.push(c);
+  }
+  return out;
+}
+
+async function stats() {
   const all = figma.currentPage.findAllWithCriteria({ types: ['CONNECTOR'] });
-  return { total: all.length, broken: all.filter(isBroken).length, linked: all.filter(linked).length };
+  return {
+    total: all.length,
+    broken: all.filter(isBroken).length,
+    linked: all.filter(linked).length,
+    inSelection: (await selectionConnectors()).length,
+  };
 }
 
 async function pushState() {
@@ -151,7 +175,7 @@ async function pushState() {
     type: 'state',
     nodes: sel.filter((n) => !isConnector(n)).length ? picked.filter(alive).map(describe) : [],
     connectors,
-    stats: stats(),
+    stats: await stats(),
     defaults,
     presets,
   });
@@ -280,33 +304,37 @@ async function addPrototypeLink(ids: string[]): Promise<{ ok: number; skipped: s
     }
     starts.push(screenOf(src as SceneNode));
     dests.add(dest.id);
-    const has = src.reactions.some((r) => (r.actions || []).some((a) => a.type === 'NODE' && a.destinationId === dest.id));
-    if (has) { ok++; continue; }
+    // Links made by earlier versions (Smart animate 0.3 s) become instant too.
+    const kept = src.reactions.filter((r) => !isOldLink(r, dest.id));
+    const has = kept.some((r) => (r.actions || []).some((a) => a.type === 'NODE' && a.destinationId === dest.id));
+    if (has && kept.length === src.reactions.length) { ok++; continue; }
     const reaction: Reaction = {
       trigger: { type: 'ON_CLICK' },
-      actions: [{
-        type: 'NODE',
-        destinationId: dest.id,
-        navigation: 'NAVIGATE',
-        transition: { type: 'SMART_ANIMATE', easing: { type: 'EASE_OUT' }, duration: 0.3 },
-        resetScrollPosition: true,
-      }],
+      actions: [{ type: 'NODE', destinationId: dest.id, navigation: 'NAVIGATE', transition: null, resetScrollPosition: true }],
     };
-    await src.setReactionsAsync(src.reactions.concat([reaction]));
+    await src.setReactionsAsync(has ? kept : kept.concat([reaction]));
     ok++;
   }
   return { ok, skipped, start: addFlowStart(starts, dests) };
 }
 
-// Without a flow, Present has nowhere to begin: start at the first screen that
-// links out and nothing links to. Returns its name, or '' if none was added.
+function isOldLink(r: Reaction, dest: string): boolean {
+  return !!r.trigger && r.trigger.type === 'ON_CLICK' && (r.actions || []).length === 1 && (r.actions || []).every((a) =>
+    a.type === 'NODE' && a.destinationId === dest && !!a.transition && a.transition.type === 'SMART_ANIMATE' && a.transition.duration === 0.3);
+}
+
+// Each flow needs a starting point for Present: unless one of its screens
+// already is one, start at the first screen that links out and nothing links
+// to. Returns its name, or '' if none was added.
 function addFlowStart(starts: SceneNode[], dests: Set<string>): string {
   const page = figma.currentPage;
-  if (!starts.length || page.flowStartingPoints.length) return '';
+  if (!starts.length) return '';
+  const screens = new Set([...starts.map((n) => n.id), ...dests]);
+  if (page.flowStartingPoints.some((f) => screens.has(f.nodeId))) return '';
   const first = starts.find((n) => !dests.has(n.id)) || starts[0];
   if (first.type !== 'FRAME' && first.type !== 'COMPONENT' && first.type !== 'INSTANCE') return '';
   try {
-    page.flowStartingPoints = [{ nodeId: first.id, name: first.name }];
+    page.flowStartingPoints = page.flowStartingPoints.concat([{ nodeId: first.id, name: first.name }]);
     return first.name;
   } catch {
     return ''; // Not a valid starting frame: the interactions still work.
@@ -324,7 +352,7 @@ type UIMessage = { requestId?: string } & (
   | { type: 'swap'; ids: string[] }
   | { type: 'delete'; ids: string[] }
   | { type: 'select'; id: string; which: 'from' | 'to' }
-  | { type: 'prototype'; ids?: string[] } // no ids: every linked connector on the page
+  | { type: 'prototype'; ids?: string[] } // no ids: the selected flow, else every linked connector on the page
   | { type: 'defaults'; defaults: Defaults }
   | { type: 'defaults-from'; id: string }
   | { type: 'reset-defaults' }
@@ -391,7 +419,9 @@ async function handle(msg: UIMessage): Promise<string> {
       break;
     }
     case 'prototype': {
-      const ids = msg.ids || figma.currentPage.findAllWithCriteria({ types: ['CONNECTOR'] }).filter(linked).map((c) => c.id);
+      // No ids: the selected flow, else the whole page.
+      const inSelection = msg.ids ? [] : await selectionConnectors();
+      const ids = msg.ids || (inSelection.length ? inSelection : figma.currentPage.findAllWithCriteria({ types: ['CONNECTOR'] }).filter(linked)).map((c) => c.id);
       if (!ids.length) throw new Error(t('prototype.none'));
       const r = await addPrototypeLink(ids);
       commit();

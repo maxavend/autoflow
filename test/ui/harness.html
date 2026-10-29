@@ -42,7 +42,7 @@ window.state = { type: 'state', presets: params.has('presets') ? [
   { id: 'a', name: 'Flujo principal', kind: 'elbow', style: { ...style } },
   { id: 'b', name: 'Error', kind: 'curve', style: { ...style, color: '#f24822', dash: 'dash' } },
   { id: 'c', name: 'Alternativo', kind: 'straight', style: { ...style, color: '#757575', endCap: 'none' } },
-] : [], stats: { total: 6, broken: 1, linked: 5 }, defaults: { kind: 'elbow', style: JSON.parse(JSON.stringify(style)) }, ...SCENARIOS[scenario] };
+] : [], stats: { total: 6, broken: 1, linked: 5, inSelection: 0 }, defaults: { kind: 'elbow', style: JSON.parse(JSON.stringify(style)) }, ...SCENARIOS[scenario] };
 const FONTS = [
   { family: 'Inter', styles: ['Thin', 'Light', 'Regular', 'Medium', 'Semi Bold', 'Bold', 'Extra Bold', 'Black'] },
   { family: 'Roboto', styles: ['Regular', 'Medium', 'Bold'] },
