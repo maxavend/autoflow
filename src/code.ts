@@ -318,6 +318,7 @@ function addFlowStart(starts: SceneNode[], dests: Set<string>): string {
 type UIMessage = { requestId?: string } & (
   | { type: 'ready' }
   | { type: 'env'; paste?: string }
+  | { type: 'copied'; pairs: number }
   | { type: 'plan'; order: string[]; mode: LinkMode; fromSide?: SideOpt; toSide?: SideOpt }
   | { type: 'patch'; ids: string[]; patch: Patch }
   | { type: 'swap'; ids: string[] }
@@ -355,6 +356,10 @@ async function handle(msg: UIMessage): Promise<string> {
       break;
     case 'env':
       t = translator({ paste: msg.paste === 'Ctrl+V' ? 'Ctrl+V' : '⌘V' });
+      return result;
+    case 'copied':
+      // Figma's own toast, outside the panel, where the user is about to paste.
+      figma.notify(msg.pairs > 1 ? t('notify.copied.many', { n: msg.pairs }) : t('notify.copied'), { timeout: 4000 });
       return result;
     case 'plan':
       planOrder = Array.isArray(msg.order) ? msg.order.map(String) : [];
@@ -446,7 +451,7 @@ async function handle(msg: UIMessage): Promise<string> {
 }
 
 function reply(msg: UIMessage, ok: boolean, message: string) {
-  if (msg.type === 'resize' || msg.type === 'plan' || msg.type === 'env') return;
+  if (msg.type === 'resize' || msg.type === 'plan' || msg.type === 'env' || msg.type === 'copied') return;
   figma.ui.postMessage({ type: 'result', requestId: msg.requestId ?? null, action: msg.type, ok, message });
 }
 

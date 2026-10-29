@@ -793,6 +793,8 @@ function renderCreate() {
   $('pastePrompt').hidden = !copied || !ready;
   $('pasteText').textContent = pairs > 1 ? t('paste.many', { n: pairs }) : t('paste.one');
   if (!copyFlash) $('copyBtn').textContent = copied ? t('copy.again') : t('copy');
+  // Once copied, ⌘V is the action: the copy button steps back.
+  $('copyBtn').setAttribute('variant', copied && ready ? 'secondary' : 'primary');
   $('nextHint').textContent = !copied
     ? t('hint.copy')
     : ready
@@ -1002,9 +1004,18 @@ function copyConnector() {
     copyFlash = 0;
     if (state) render();
   }, 1200);
-  toast(t('toast.copied'));
+  post({ type: 'copied', pairs: state ? pairsOf(orderedNodes()).length : 0 });
   if (state) render();
+  nudgePaste();
   return true;
+}
+
+// The next step is ⌘V: replay the prompt's flash on every copy.
+function nudgePaste() {
+  const el = $('pastePrompt');
+  el.classList.remove('is-fresh');
+  void el.offsetWidth; // restart the animation
+  el.classList.add('is-fresh');
 }
 
 const ids = () => (state ? state.connectors.map((c) => c.id) : []);
