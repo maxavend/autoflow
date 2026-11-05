@@ -94,6 +94,13 @@ function solidHex(paints: ReadonlyArray<Paint> | PluginAPI['mixed'], d: string):
   return p ? { hex: rgbToHex(p.color), opacity: p.opacity ?? 1 } : { hex: d, opacity: 1 };
 }
 
+export async function readEndpoints(c: ConnectorNode) {
+  const aim = readAim(c);
+  const from = await readEnd(c.connectorStart as FigmaEnd, aim.from);
+  const to = await readEnd(c.connectorEnd as FigmaEnd, aim.to);
+  return { from, to };
+}
+
 export async function readView(c: ConnectorNode): Promise<ConnectorView> {
   const stroke = solidHex(c.strokes, '#1e1e1e');
   const text = c.text;
@@ -111,10 +118,7 @@ export async function readView(c: ConnectorNode): Promise<ConnectorView> {
     labelSize: typeof fontSize === 'number' ? fontSize : undefined,
     labelFont: fontName !== figma.mixed && fontName.family ? { family: fontName.family, style: fontName.style } : undefined,
   });
-  const aim = readAim(c);
-  const from = await readEnd(c.connectorStart as FigmaEnd, aim.from);
-  const to = await readEnd(c.connectorEnd as FigmaEnd, aim.to);
-  return { from, to, kind: kindFromFigma(c.connectorLineType), style, label: text.characters, broken: isBroken(c) };
+  return { ...await readEndpoints(c), kind: kindFromFigma(c.connectorLineType), style, label: text.characters, broken: isBroken(c) };
 }
 
 export const isAttached = (ep: ConnectorEndpoint) => !!(ep as FigmaEnd).endpointNodeId;

@@ -30,6 +30,7 @@ Luego ejecútalo desde **Plugins → Development → Autoflow · Smart Connector
 | Flujos de 3+ elementos | Selecciónalos y elige **One after another** (A→B→C) o **All from the first** (A→B, A→C). El panel muestra los conectores que creará **⌘V**; el botón de invertir cambia la dirección. |
 | Editar | Selecciona un conector: barra estilo FigJam con color, trazo (grosor y estilo de línea), etiqueta (T), punta inicial, tipo de trazado y punta final. Anclajes, esquinas, hex exacto y tipografía en **More options**. Selección múltiple = edición en lote. |
 | Prototipo | **Make prototype** (en *On this page*) convierte conectores en `On click → Navigate` instantáneos (sin transición): el clic queda en el origen (el botón, aunque esté dentro de una instancia) y navega a la pantalla del destino. Con un flujo seleccionado (sus pantallas, o los conectores) actúa solo sobre los conectores que salen de la selección (*Make prototype from selection*); sin selección, sobre toda la página. Si ninguna pantalla del flujo es punto de inicio, agrega uno en la primera; luego ▶ Present. Repetirlo no duplica interacciones. |
+| Flechas desde el prototipo | Selecciona las pantallas de origen, pulsa **Make arrows from prototype** (en *On this page*) y pega en el lienzo hasta que el panel indique que terminaste. Autoflow conecta cada capa con una interacción `Navigate to`, `Open overlay` o `Swap overlay` con su destino en la misma página, aunque el destino esté fuera de la selección. Incluye las ramas de las acciones condicionales. Conserva las interacciones y omite las flechas que ya existen. |
 | My styles | **Save this style** guarda con un nombre el color, trazo, puntas, tipo de línea y tipografía actuales. Un clic en un estilo guardado lo aplica a los conectores seleccionados o, sin selección, a los nuevos. Se guardan en tu Figma (no en el archivo), así que están en todos tus archivos; el estilo de los conectores nuevos también se recuerda entre sesiones. |
 | Sueltos | Si se borra la pantalla o capa de un extremo, el conector queda suelto: el panel avisa, **Show** lo selecciona en el lienzo y **Delete** lo elimina. |
 
@@ -88,6 +89,7 @@ Verificación visual fuera de Figma: sirve la raíz del proyecto (`python3 -m ht
 | UI → plugin | `plan` | `order: id[], mode: chain\|fan, fromSide, toSide` (para el próximo ⌘V) |
 | UI → plugin | `patch` | `ids[], patch{kind?, label?, fromSide?, toSide?, fromT?, toT?, style?}` |
 | UI → plugin | `swap` · `delete` · `prototype` | `ids[]` |
+| UI → plugin | `prototype-arrows` | Prepara las flechas que salen de las pantallas seleccionadas para el próximo pegado |
 | UI → plugin | `select` | `id, which: from\|to` |
 | UI → plugin | `defaults` | `defaults{kind, style}` · `defaults-from`: `id` |
 | UI → plugin | `preset-save` · `preset-delete` | `name, preset{kind, style}` · `id` (estilos guardados en `clientStorage`) |

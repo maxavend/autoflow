@@ -1,7 +1,7 @@
 // Autoflow panel. Talks to src/code.ts through the message contract:
 //   plugin → UI: state, fonts, result
 //   UI → plugin: ready, plan, patch, swap,
-//                delete, select, select-broken, prototype, defaults,
+//                delete, select, select-broken, prototype, prototype-arrows, defaults,
 //                defaults-from, reset-defaults, preset-save, preset-delete,
 //                clean, resize
 //                (all but plan/resize carry requestId)
@@ -816,6 +816,11 @@ function render() {
   const inSel = s.stats.inSelection || 0;
   $('protoHint').textContent = inSel ? plural(t, 'proto.sel', inSel) : t('proto.hint');
   $('protoBtn').textContent = inSel ? t('proto.make.sel') : t('proto.make');
+  const arrowsBtn = $('protoArrowsBtn');
+  arrowsBtn.toggleAttribute('disabled', !s.prototypeSource || arrowsBtn.hasAttribute('aria-busy'));
+  $('protoArrowsHint').textContent = s.prototypePaste
+    ? plural(t, 'proto.arrows.paste', s.prototypePaste)
+    : t('proto.arrows.select');
 
   $('secTool').hidden = !!conns;
   renderCreate();
@@ -1036,6 +1041,16 @@ function bindActions() {
   bindPresets();
   $('cleanBtn').addEventListener('click', () => run($('cleanBtn'), { type: 'clean' }));
   $('protoBtn').addEventListener('click', () => run($('protoBtn'), { type: 'prototype' }));
+  $('protoArrowsBtn').addEventListener('click', () => {
+    const btn = $('protoArrowsBtn');
+    if (!state?.prototypeSource || btn.hasAttribute('aria-busy')) return;
+    if (!copyPayload()) {
+      toast(t('copyFailed'));
+      return;
+    }
+    copied = false;
+    run(btn, { type: 'prototype-arrows' });
+  });
   $('swapBtn').addEventListener('click', () => run($('swapBtn'), { type: 'swap', ids: ids() }));
   $('resetDefaults').addEventListener('click', () => run($('resetDefaults'), { type: 'reset-defaults' }));
   for (const [id, which] of [['selFrom', 'from'], ['selTo', 'to']]) {
