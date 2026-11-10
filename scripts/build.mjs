@@ -1,5 +1,5 @@
 // Bundles the plugin sandbox code (src/code.ts -> dist/code.js).
-// The UI is built separately by Vite (vite.config.js -> dist/ui.html).
+// The UI is built separately by scripts/build-ui.mjs (ui/ -> dist/ui.html).
 import * as esbuild from 'esbuild';
 
 const watch = process.argv.includes('--watch');

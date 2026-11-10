@@ -1,0 +1,214 @@
+import { cn } from "@/lib/utils";
+import { Slider as BaseSlider } from "@base-ui/react";
+import React from "react";
+import chroma from "chroma-js";
+
+function Slider({ className, value, defaultValue, min, max, ...props }: BaseSlider.Root.Props) {
+  const _values = React.useMemo(
+    () =>
+      Array.isArray(value)
+        ? value
+        : typeof value === "number"
+          ? [value]
+          : Array.isArray(defaultValue)
+            ? defaultValue
+            : typeof defaultValue === "number"
+              ? [defaultValue]
+              : [min ?? 0],
+    [value, defaultValue, min],
+  );
+
+  return (
+    <BaseSlider.Root
+      defaultValue={defaultValue}
+      value={value}
+      min={min}
+      max={max}
+      thumbAlignment="edge"
+      {...props}
+    >
+      <BaseSlider.Control
+        className={cn(
+          "flex w-32 touch-none items-center rounded-full bg-grey-100 inset-ring inset-ring-grey-200 select-none dark:bg-grey-700 dark:inset-ring-grey-600",
+          className,
+        )}
+      >
+        <BaseSlider.Track className={cn("h-4 w-full select-none")}>
+          <BaseSlider.Indicator
+            className={cn("bg-blue-500 select-none", _values.length === 1 ? "rounded-l-full" : "")}
+          />
+          {Array.from({ length: _values.length }).map((_, index) => (
+            <BaseSlider.Thumb
+              key={index}
+              className={cn(
+                "size-4 rounded-full bg-white-1000 shadow-100 select-none before:hidden",
+              )}
+            >
+              <span className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black-100 bg-blue-500" />
+            </BaseSlider.Thumb>
+          ))}
+        </BaseSlider.Track>
+      </BaseSlider.Control>
+    </BaseSlider.Root>
+  );
+}
+
+interface ColorRangeSliderProps extends Omit<
+  BaseSlider.Root.Props,
+  "value" | "defaultValue" | "min" | "max" | "onValueChange" | "children"
+> {
+  value?: number;
+  defaultValue?: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  onValueChange?: (value: number, event: Event, activeThumbIndex: number) => void;
+}
+
+function ColorRangeSlider({
+  className,
+  value,
+  defaultValue = 0,
+  min = 0,
+  max = 360,
+  step = 1,
+  onValueChange,
+  ...props
+}: ColorRangeSliderProps) {
+  const isControlled = value !== undefined;
+  const [internalValue, setInternalValue] = React.useState<number>(defaultValue ?? 0);
+
+  React.useEffect(() => {
+    if (!isControlled && defaultValue !== undefined) {
+      setInternalValue(defaultValue);
+    }
+  }, [defaultValue, isControlled]);
+
+  const handleValueChange = React.useCallback(
+    (next: number | number[], eventDetails: BaseSlider.Root.ChangeEventDetails) => {
+      const nextNumber = Array.isArray(next) ? (next[0] ?? 0) : next;
+      if (!isControlled) setInternalValue(nextNumber);
+      onValueChange?.(nextNumber, eventDetails.event, eventDetails.activeThumbIndex);
+    },
+    [isControlled, onValueChange],
+  );
+
+  const hue = isControlled ? (value as number) : internalValue;
+
+  return (
+    <BaseSlider.Root
+      value={value}
+      defaultValue={defaultValue}
+      min={min}
+      max={max}
+      step={step}
+      onValueChange={handleValueChange}
+      thumbAlignment="edge"
+      {...props}
+    >
+      <BaseSlider.Control
+        className={cn(
+          "flex w-32 touch-none items-center rounded-full inset-ring inset-ring-black-100 select-none",
+          "[background-image:linear-gradient(to_right,#FF0000_0%,#FFA800_13%,#FFFF00_22%,#00FF00_34%,#00FFFF_50%,#0000FF_66%,#FF00FF_82%,#FF0000_100%)]",
+          className,
+        )}
+      >
+        <BaseSlider.Track className={cn("relative h-4 w-full rounded-full select-none")}>
+          <BaseSlider.Thumb
+            className={cn(
+              "size-4 rounded-full bg-white-1000 shadow-100 select-none",
+              "before:hidden",
+            )}
+          >
+            <span
+              className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black-100 bg-blue-500"
+              style={{ backgroundColor: `hsl(${hue}, 100%, 50%)` }}
+            />
+          </BaseSlider.Thumb>
+        </BaseSlider.Track>
+      </BaseSlider.Control>
+    </BaseSlider.Root>
+  );
+}
+
+interface OpacitySliderProps extends Omit<
+  BaseSlider.Root.Props,
+  "value" | "defaultValue" | "min" | "max" | "onValueChange" | "children"
+> {
+  value?: number;
+  defaultValue?: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  color?: string;
+  onValueChange?: (value: number) => void;
+}
+
+function OpacitySlider({
+  className,
+  value,
+  defaultValue = 0,
+  min = 0,
+  max = 1,
+  step = 0.01,
+  onValueChange,
+  color = "black",
+  ...props
+}: OpacitySliderProps) {
+  const [lastValidHex, setLastValidHex] = React.useState<string>(() =>
+    chroma.valid(color) ? chroma(color).hex() : chroma("black").hex(),
+  );
+
+  React.useEffect(() => {
+    if (chroma.valid(color)) {
+      setLastValidHex(chroma(color).hex());
+    }
+  }, [color]);
+
+  const handleChange = React.useCallback(
+    (next: number | number[]) => {
+      const nextNumber = Array.isArray(next) ? (next[0] ?? 0) : next;
+      onValueChange?.(nextNumber);
+    },
+    [onValueChange],
+  );
+
+  return (
+    <BaseSlider.Root
+      value={value}
+      defaultValue={defaultValue}
+      min={min}
+      max={max}
+      step={step}
+      onValueChange={handleChange}
+      {...props}
+    >
+      <BaseSlider.Control
+        className={cn(
+          "flex w-32 touch-none items-center overflow-hidden rounded-full px-2 inset-ring inset-ring-black-100 select-none",
+          "[background-image:linear-gradient(to_right,transparent_0%,var(--opacity-color)_100%),conic-gradient(#d1d5db_25%,#0000_0_50%,#d1d5db_0_75%,#0000_0)]",
+          "[background-size:100%_100%,12px_12px]",
+          className,
+        )}
+        style={{ "--opacity-color": lastValidHex } as React.CSSProperties}
+      >
+        <BaseSlider.Track className={cn("relative h-4 w-full rounded-full select-none")}>
+          <BaseSlider.Thumb
+            className={cn(
+              "size-4 rounded-full bg-white-1000 shadow-100 select-none",
+              'before:absolute before:top-1/2 before:right-1/2 before:size-2 before:translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:border before:border-black-100 before:content-[""]',
+              "before:[background-color:var(--opacity-color)]",
+            )}
+            style={
+              {
+                "--opacity-color": lastValidHex,
+              } as React.CSSProperties
+            }
+          />
+        </BaseSlider.Track>
+      </BaseSlider.Control>
+    </BaseSlider.Root>
+  );
+}
+
+export { ColorRangeSlider, Slider, OpacitySlider };

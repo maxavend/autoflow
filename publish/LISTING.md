@@ -6,7 +6,7 @@ Estos son los textos e imágenes para llenar el formulario **Plugins → Manage 
 
 1. Ejecuta `npm run release`. El comando pasa el lint, corre los tests y compila. Después revisa el manifest, el build, que la UI no use recursos externos, los avisos de licencia y las imágenes. Tiene que terminar con "Listo para publicar". Hoy marca un pendiente:
    - **`id` del manifest:** es `1696659204905122263`, el que Figma generó en el primer intento de publicación (antes era `autoflow-smart-connectors`, que no es un id de Figma). No lo cambies: las versiones siguientes se publican con **Publish new version** sobre este id.
-   - **Avisos de licencia:** la UI usa FigUI3 (de Rogie King; el módulo de editor tiene licencia PolyForm Shield 1.0.0) y los íconos UI3 de `@create-figma-plugin/ui` (de Yuan Qing Lim). Agrega sus avisos a la interfaz y un `THIRD_PARTY_NOTICES.md`, como en Properties Copycat.
+   - **Avisos de licencia:** la UI usa FigUI (figui.dev, de XIN, licencia MIT) con React y Base UI, y los íconos UI3 de `@create-figma-plugin/ui` (de Yuan Qing Lim, MIT). Sus avisos están en la cabecera de `dist/ui.html` y en `THIRD_PARTY_NOTICES.md`; `npm run release` comprueba que estén.
 2. **Nombre:** ya existe en Community un plugin pagado llamado *Autoflow*, de David Zhao y Yitong Zhang. Figma puede rechazar un nombre repetido, y la gente confundiría los dos plugins. Decide el nombre final antes de enviar. Si cambia, actualiza `manifest.json`, esta ficha y las imágenes (`npm run listing`).
 3. Prueba el plugin en Figma desktop con la lista de [Prueba manual](#prueba-manual).
 4. Activa la verificación en dos pasos de tu cuenta de Figma. Es obligatoria para publicar.

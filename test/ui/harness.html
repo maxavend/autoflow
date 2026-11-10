@@ -13,7 +13,7 @@
      plugin) and plays the plugin side with fixtures. Query params:
      ?theme=dark|light  ?scenario=defaults|connector|nolabel|nodes|one|two|multi  &presets
      ?open=advanced,menu:color|menu:weight|menu:startCap|menu:kind|menu:endCap,family,style,color
-     (comma-separated: expands options, opens a toolbar picker / select / the fill picker)
+     (comma-separated: expands options, opens a toolbar picker / select, focuses the line color)
      The iframe grows to the height the panel reports (#height has it). -->
 <iframe id="ui" src="../../dist/ui.html" title="Autoflow"></iframe>
 <pre id="height" hidden></pre>
@@ -79,21 +79,25 @@ frame.addEventListener('load', () => {
   setTimeout(() => {
     const d = frame.contentDocument;
     const w = frame.contentWindow;
+    // A real press (pointer + mouse + click), as the Base UI triggers expect.
+    const press = (el) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const at = { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, pointerId: 1, button: 0 };
+      for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+        el.dispatchEvent(new (type.startsWith('pointer') ? w.PointerEvent : w.MouseEvent)(type, at));
+      }
+    };
     for (const open of opens) {
       if (open === 'advanced') {
         if (d.getElementById('advanced').hidden) d.getElementById('moreToggle').click();
       } else if (open === 'color') {
-        // The picker is created on the first swatch press, then opened.
-        const host = d.querySelector('fig-input-color[data-key=color]');
-        const swatch = host.querySelector('fig-swatch input[type=color]');
-        swatch.dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true }));
-        swatch.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
-        setTimeout(() => { if (!d.querySelector('dialog[open]')) host.querySelector('fig-fill-picker')?.open(); }, 100);
+        // The line color's hex field (the chit opens the system color picker).
+        d.getElementById('lineColorHex')?.focus();
       } else if (open.startsWith('menu:')) {
-        d.querySelector(`.tool-wrap[data-picker="${open.slice(5)}"] fig-button`)?.click();
+        press(d.querySelector(`[data-picker="${open.slice(5)}"]`));
       } else {
-        const sel = { family: '#fontFamily', style: '#fontStyle' }[open] || `[data-key=${open}]`;
-        d.querySelector(sel)?.setAttribute('open', '');
+        press(d.querySelector({ family: '#fontFamily', style: '#fontStyle' }[open] || `[data-key=${open}]`));
       }
     }
     // Headless capture: measure directly too, in case ResizeObserver hasn't fired yet.
