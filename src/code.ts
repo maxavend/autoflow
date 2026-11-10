@@ -9,7 +9,7 @@
 
 import {
   applyKind, applyLabel, applyPatch, applyStyle, containerFor, isAttached, isBroken, isConnector, isSeed, sourceId,
-  pageOf, readView, remember, screenOf, setEnd, swapEnds,
+  pageOf, readEndpoints, readView, remember, screenOf, setEnd, swapEnds,
 } from './connector.ts';
 import {
   DEFAULTS, MAX_PRESETS, normalizeDefaults, normalizePreset, pick, SIDE_OPTS,
@@ -176,6 +176,8 @@ async function pushState() {
     nodes: sel.filter((n) => !isConnector(n)).length ? picked.filter(alive).map(describe) : [],
     connectors,
     stats: await stats(),
+    prototypeSource: sel.some(isPrototypeScreen),
+    prototypePaste: prototypeImport?.page === figma.currentPage ? prototypeImport.count : 0,
     defaults,
     presets,
   });
@@ -231,6 +233,10 @@ async function adopt(ids: string[]) {
     if (n && !n.removed && isSeed(n) && pageOf(n) === figma.currentPage) seeds.push(n);
   }
   if (!seeds.length) return;
+  if (prototypeImport) {
+    await adoptPrototype(seeds, prototypeImport);
+    return;
+  }
 
   const nodes = sortBy(picked.filter(alive), planOrder);
   const mode: LinkMode = nodes.length === 2 ? 'pair' : planMode;
@@ -279,6 +285,86 @@ async function forEachConnector(ids: string[], fn: (c: ConnectorNode) => Promise
   for (const id of ids) {
     const c = await connectorById(id);
     if (c) await fn(c);
+  }
+}
+
+// Figma Design needs a pasted native seed for each connector.
+type PrototypeScreen = FrameNode | ComponentNode | InstanceNode;
+type PrototypeImport = { page: PageNode; roots: readonly PrototypeScreen[]; count: number; failed: Set<string> };
+let prototypeImport: PrototypeImport | null = null;
+
+function isPrototypeScreen(n: BaseNode): n is PrototypeScreen {
+  return (n.type === 'FRAME' || n.type === 'COMPONENT' || n.type === 'INSTANCE') && screenOf(n) === n;
+}
+
+function* navigationTargets(actions: readonly Action[]): Generator<string> {
+  for (const action of actions) {
+    if (action.type === 'CONDITIONAL') {
+      for (const branch of action.conditionalBlocks) yield* navigationTargets(branch.actions);
+    } else if (action.type === 'NODE' && action.destinationId &&
+      (action.navigation === 'NAVIGATE' || action.navigation === 'OVERLAY' || action.navigation === 'SWAP')) {
+      yield action.destinationId;
+    }
+  }
+}
+
+const linkKey = (from: string, to: string) => JSON.stringify([from, to]);
+
+async function prototypePairs(plan: PrototypeImport) {
+  const pairs: [SceneNode, SceneNode][] = [];
+  const seen = new Set(plan.failed);
+  const destinations = new Map<string, BaseNode | null>();
+  for (const c of plan.page.findAllWithCriteria({ types: ['CONNECTOR'] }).filter(linked)) {
+    const { from, to } = await readEndpoints(c);
+    seen.add(linkKey(from.id, to.id));
+  }
+  for (const root of plan.roots.filter((n) => !n.removed && pageOf(n) === plan.page && isPrototypeScreen(n))) {
+    for (const src of [root, ...root.findAll((n) => 'reactions' in n && n.reactions.length > 0)]) {
+      if (!('reactions' in src)) continue;
+      for (const reaction of src.reactions) {
+        if (!reaction.trigger) continue;
+        for (const id of navigationTargets(reaction.actions ?? (reaction.action ? [reaction.action] : []))) {
+          const key = linkKey(src.id, id);
+          if (src.id === id || seen.has(key)) continue;
+          seen.add(key);
+          if (!destinations.has(id)) destinations.set(id, await figma.getNodeByIdAsync(id));
+          const dest = destinations.get(id);
+          if (dest && !dest.removed && pageOf(dest) === plan.page && isPrototypeScreen(dest)) pairs.push([src, dest]);
+        }
+      }
+    }
+  }
+  return pairs;
+}
+
+async function adoptPrototype(seeds: ConnectorNode[], plan: PrototypeImport) {
+  const done: ConnectorNode[] = [];
+  let missing = 0;
+  try {
+    if (plan.page !== figma.currentPage || !plan.count) return;
+    const pairs = await prototypePairs(plan);
+    for (const [i, [src, dest]] of pairs.slice(0, seeds.length).entries()) {
+      if (plan.page !== figma.currentPage) break;
+      try {
+        await attach(seeds[i], src, dest);
+        done.push(seeds[i]);
+      } catch {
+        plan.failed.add(linkKey(src.id, dest.id));
+        missing++;
+      }
+    }
+    plan.count = pairs.length - done.length - missing;
+    if (missing) toast(t('proto.arrows.failed', { done: done.length, missing }), !done.length);
+    else if (plan.count) toast(plural(t, 'proto.arrows.paste', plan.count));
+    else toast(done.length ? plural(t, 'created', done.length) : t('proto.arrows.none'));
+  } finally {
+    for (const c of seeds) if (!c.removed && !done.includes(c)) c.remove();
+    commit();
+    if (plan.page === figma.currentPage) {
+      if (plan.count) figma.currentPage.selection = plan.roots.filter(alive);
+      else if (done.length) figma.currentPage.selection = done;
+    }
+    await pushState();
   }
 }
 
@@ -353,6 +439,7 @@ type UIMessage = { requestId?: string } & (
   | { type: 'delete'; ids: string[] }
   | { type: 'select'; id: string; which: 'from' | 'to' }
   | { type: 'prototype'; ids?: string[] } // no ids: the selected flow, else every linked connector on the page
+  | { type: 'prototype-arrows' }
   | { type: 'defaults'; defaults: Defaults }
   | { type: 'defaults-from'; id: string }
   | { type: 'reset-defaults' }
@@ -386,8 +473,10 @@ async function handle(msg: UIMessage): Promise<string> {
       t = translator({ paste: msg.paste === 'Ctrl+V' ? 'Ctrl+V' : '⌘V' });
       return result;
     case 'copied':
+      prototypeImport = null;
       // Figma's own toast, outside the panel, where the user is about to paste.
       figma.notify(msg.pairs > 1 ? t('notify.copied.many', { n: msg.pairs }) : t('notify.copied'), { timeout: 4000 });
+      await pushState();
       return result;
     case 'plan':
       planOrder = Array.isArray(msg.order) ? msg.order.map(String) : [];
@@ -430,6 +519,16 @@ async function handle(msg: UIMessage): Promise<string> {
         : t('prototype.ok', { n: r.ok });
       if (r.start) result += ' ' + t('prototype.start', { name: r.start });
       if (r.skipped.length && !r.ok) throw new Error(result);
+      toast(result);
+      break;
+    }
+    case 'prototype-arrows': {
+      const page = figma.currentPage;
+      const plan: PrototypeImport = { page, roots: page.selection.filter(isPrototypeScreen), count: 0, failed: new Set() };
+      prototypeImport = plan;
+      if (!plan.roots.length) throw new Error(t('proto.arrows.select'));
+      plan.count = (await prototypePairs(plan)).length;
+      result = plan.count ? plural(t, 'proto.arrows.paste', plan.count) : t('proto.arrows.none');
       toast(result);
       break;
     }

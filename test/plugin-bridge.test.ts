@@ -64,6 +64,7 @@ function frame(id: string, name: string, x: number, parent: Fake = page): Fake {
     ...plugData(),
   };
   Object.defineProperty(n, 'children', { get: () => children(n) });
+  n.findAll = (fn: (c: Fake) => boolean) => all(n).filter(fn);
   nodes.set(id, n);
   return n;
 }
@@ -386,6 +387,55 @@ test('click order wins and three elements chain A → B → C', async () => {
   const made = (await paste([a, b, c])).filter((n) => !n.removed);
   const links = made.map((n) => [(n.connectorStart as { endpointNodeId: string }).endpointNodeId, (n.connectorEnd as { endpointNodeId: string }).endpointNodeId]);
   assert.deepEqual(links, [['3:2', '3:1'], ['3:1', '3:3']]);
+});
+
+test('Make arrows from prototype keeps screen and nested origins queued across pastes without duplicating links', async () => {
+  const source = frame('20:1', 'Start', 0);
+  const dest = frame('20:2', 'Destination', 400);
+  const overlay = frame('20:3', 'Overlay', 800);
+  const outside = frame('20:4', 'Unselected source', 1200);
+  const instance = frame('20:5', 'Controls', 0, source);
+  instance.type = 'INSTANCE';
+  const button = frame('I20:5;1:1', 'Button', 0, instance);
+  button.type = 'RECTANGLE';
+  const nav = (destinationId: string, navigation = 'NAVIGATE') => ({ type: 'NODE', destinationId, navigation, transition: null });
+  const onClick = { type: 'ON_CLICK' };
+  source.reactions = [{ trigger: onClick, action: nav(dest.id) }];
+  button.reactions = [{ trigger: onClick, actions: [
+    nav(dest.id),
+    { type: 'CONDITIONAL', conditionalBlocks: [
+      { actions: [nav(dest.id), nav(overlay.id, 'OVERLAY')] },
+      { actions: [nav(outside.id, 'CHANGE_TO'), nav('20:99'), { type: 'BACK' }] },
+    ] },
+  ] }];
+  outside.reactions = [{ trigger: onClick, actions: [nav(source.id)] }];
+  const reactions = structuredClone([source.reactions, button.reactions, outside.reactions]);
+  select(source);
+  const prepare = await send({ type: 'prototype-arrows' });
+  assert.equal(prepare?.ok, true);
+  assert.match(String(prepare?.message), /draw all 3 remaining links/);
+
+  const first = await paste([source]);
+  assert.deepEqual(page.selection, [source], 'the selected screen is restored while links remain');
+  const rest = await paste([source, source]);
+  const arrows = [...first, ...rest];
+  assert.ok(arrows.every((n) => !n.removed));
+  assert.deepEqual(arrows.map((n) => n.name), ['Start → Destination', 'Button → Destination', 'Button → Overlay']);
+  assert.deepEqual(arrows.map((n) => (n.connectorStart as { endpointNodeId: string }).endpointNodeId), [source.id, instance.id, instance.id]);
+  assert.deepEqual(arrows.map((n) => (n.connectorEnd as { endpointNodeId: string }).endpointNodeId), [dest.id, dest.id, overlay.id]);
+  assert.deepEqual([source.reactions, button.reactions, outside.reactions], reactions);
+
+  select(source);
+  assert.match(String((await send({ type: 'prototype-arrows' }))?.message), /no new prototype links/);
+  assert.ok((await paste([source]))[0].removed);
+  assert.ok(arrows.every((n) => !n.removed));
+
+  // Re-copying the regular connector restores ordinary paste adoption.
+  ui.onmessage!({ type: 'copied', pairs: 1 });
+  select(dest, outside);
+  const [manual] = await paste([dest]);
+  assert.equal(manual.name, 'Destination → Unselected source');
+  for (const n of [source, dest, overlay, outside, instance, button, ...arrows, manual]) n.removed = true;
 });
 
 test('panel order and fan mode are used for the paste', async () => {

@@ -114,6 +114,12 @@ const en = {
   'proto.sel.other': 'Turn the {n} connectors leaving your selection into On click → Navigate, then press ▶ Present.',
   'proto.make': 'Make prototype',
   'proto.make.sel': 'Make prototype from selection',
+  'proto.arrows.make': 'Make arrows from prototype',
+  'proto.arrows.select': 'Select the screens with outgoing prototype links.',
+  'proto.arrows.paste.one': 'Press {paste} on the canvas to draw the remaining prototype link.',
+  'proto.arrows.paste.other': 'Press {paste} on the canvas. Repeat as needed to draw all {n} remaining links.',
+  'proto.arrows.none': 'There are no new prototype links to screens on this page.',
+  'proto.arrows.failed': '{done} connector(s) created. Could not attach {missing}.',
 
   'side.auto': 'Automatic',
   'side.top': 'Top',
