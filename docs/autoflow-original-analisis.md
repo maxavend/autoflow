@@ -10,7 +10,7 @@ License*: aquí solo se describe el comportamiento; no se copia código.
 | | Original | Nuestro |
 | --- | --- | --- |
 | Paquete total | 2,85 MB | 52 KB (`code.js`) + 782 KB (`ui.html`) |
-| UI (`__html__`) | 2,44 MB, HTML/JS vanilla, 6 imágenes base64 | figui3 + Preact, un solo archivo |
+| UI (`__html__`) | 2,44 MB, HTML/JS vanilla, 6 imágenes base64 | React + FigUI (figui.dev), un solo archivo |
 | Código principal | ~410 KB sin minificar | TypeScript compilado con esbuild |
 
 ## Cómo dibuja un flujo

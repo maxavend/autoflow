@@ -100,6 +100,11 @@ const en = {
   'font.style': 'Font style',
   'font.size': 'Text size',
   'text.color': 'Text color',
+  'color.area': 'Saturation and brightness',
+  'color.areaValue': 'Saturation {s}%, brightness {v}%',
+  'color.hue': 'Hue',
+  'color.opacity': 'Opacity',
+  'color.eyedropper': 'Pick a color from the screen',
 
   'page.title': 'On this page',
   'count.one': '1 connector',

@@ -25,7 +25,7 @@ Luego ejecútalo desde **Plugins → Development → Autoflow · Smart Connector
 | Acción | Cómo |
 | --- | --- |
 | Conectar dos elementos | Clic en el origen, Shift+clic en el destino → **Copy connector** → **⌘V** (Ctrl+V en Windows) en el lienzo. El conector copiado se crea con el estilo y los lados elegidos en el panel; sigue en el portapapeles, así que basta cambiar la selección y volver a pulsar ⌘V. |
-| Lado de salida y entrada | Cada casilla (**Source**, **Target**) tiene una cuadrícula de FigUI3 que representa el elemento: el punto de cada borde fija el lado (arriba, derecha, abajo, izquierda) y el del centro es automático; debajo se lee el lado elegido. Con un conector seleccionado aparece la misma tarjeta: los puntos cambian sus lados y el nombre lleva al elemento en el lienzo. |
+| Lado de salida y entrada | Cada casilla (**Source**, **Target**) tiene un selector de lado que representa el elemento: el punto de cada borde fija el lado (arriba, derecha, abajo, izquierda) y el del centro es automático; debajo se lee el lado elegido. Con un conector seleccionado aparece la misma tarjeta: los puntos cambian sus lados y el nombre lleva al elemento en el lienzo. |
 | Capas anidadas | ⌘/Ctrl+clic para seleccionar un botón dentro de una pantalla, un componente o una instancia. Figma no deja enganchar conectores a capas dentro de una instancia: el conector se engancha a la instancia real más cercana y apunta al botón (avisa con un mensaje). |
 | Flujos de 3+ elementos | Selecciónalos y elige **One after another** (A→B→C) o **All from the first** (A→B, A→C). El panel muestra los conectores que creará **⌘V**; el botón de invertir cambia la dirección. |
 | Editar | Selecciona un conector: barra estilo FigJam con color, trazo (grosor y estilo de línea), etiqueta (T), punta inicial, tipo de trazado y punta final. Anclajes, esquinas, hex exacto y tipografía en **More options**. Selección múltiple = edición en lote. |
@@ -71,10 +71,11 @@ npm run check
 Para publicar en Figma Community: `npm run listing` regenera el ícono, la portada y el carrusel (`publish/`, con la UI real), y `npm run release` revisa que todo esté listo. Los textos del formulario están en `publish/LISTING.md` y la marca, en `brand/kit/BRAND.md`.
 
 `check` ejecuta ESLint, los tests (`node --test`: emparejado y anclajes, validación de la UI y contrato
-plugin↔UI con pegado simulado sobre un mock de `figma`) y el build: `tsc --noEmit` + esbuild (`src/code.ts` →
-`dist/code.js`) + Vite con `vite-plugin-singlefile` (`ui/` → `dist/ui.html`, un solo HTML sin recursos remotos).
+plugin↔UI con pegado simulado sobre un mock de `figma`) y el build: `tsc --noEmit` (plugin y `ui/`) + esbuild
+(`src/code.ts` → `dist/code.js`) + `scripts/build-ui.mjs` (Tailwind CLI + esbuild: `ui/` → `dist/ui.html`, un solo
+HTML con el CSS y el JS incrustados, sin recursos remotos).
 
-La UI usa [FigUI3](https://github.com/rogie/figui3) `11.2.2` (núcleo MIT; módulo editor `fig-select`/`fig-fill-picker`/`fig-reorder` con licencia PolyForm Shield 1.0.0) e íconos oficiales de UI3 extraídos de `@create-figma-plugin/ui` con `npm run icons` → `ui/icons.js`.
+La UI está hecha con React y [FigUI](https://figui.dev) ([anxndsgn/figui](https://github.com/anxndsgn/figui), licencia MIT): componentes de Figma UI3 con React, Tailwind CSS v4 y Base UI, copiados sin cambios en `ui/components/ui/` (ver su `ORIGEN.md`) junto con `ui/lib/utils.ts` y los tokens de `ui/styles/figui.css`. Lo que FigUI no trae (barra de herramientas y sus selectores, selector de lado, menú, aviso, campos compuestos) está en `ui/app/parts.tsx`, con Base UI y los tokens de FigUI. Los íconos oficiales de UI3 se extraen de `@create-figma-plugin/ui` con `npm run icons` → `ui/icons.js` (el script usa Preact solo en desarrollo; la UI no lo incluye). Avisos de licencias: `THIRD_PARTY_NOTICES.md` y la cabecera de `dist/ui.html`.
 
 Verificación visual fuera de Figma: sirve la raíz del proyecto (`python3 -m http.server 8765`) y abre `test/ui/harness.html?theme=dark&scenario=connector` (carga `dist/ui.html` en un iframe y simula el plugin; escenarios `defaults|connector|nolabel|nodes|one|two|multi`, `&presets` para estilos guardados). `node test/ui/screenshots.mjs` genera capturas 2x con Chrome headless en `test/ui/screenshots/`.
 
@@ -101,6 +102,6 @@ src/model.ts      modelo del panel y normalización
 src/plan.ts       emparejado, orden de clic, anclajes ↔ endpoints, puntas y trazos (puro, testeable)
 src/connector.ts  lectura y escritura del CONNECTOR nativo (extremos, estilo, etiqueta)
 src/code.ts       puente con la UI, memoria de selección, adopción del pegado, estilos guardados
-ui/               panel (FigUI3) + connector-payload.html + messages.js (todos los textos, en inglés, compartidos con src/)
+ui/               panel (React + FigUI: app/, components/ui/, styles/) + connector-payload.html + messages.js (todos los textos, en inglés, compartidos con src/)
 test/             tests + arnés de la UI
 ```

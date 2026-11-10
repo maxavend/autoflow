@@ -1,6 +1,7 @@
 // Renders the official Figma UI3 icons shipped by @create-figma-plugin/ui
-// (Preact components) to plain SVG strings once, so the plugin UI can use
-// them without Preact. Output: ui/icons.js. Run: npm run icons
+// (Preact components) to plain SVG strings once, so the plugin UI (React +
+// FigUI) can use them without Preact. Preact is only a dev dependency of this
+// script; it is not in the UI bundle. Output: ui/icons.js. Run: npm run icons
 import { writeFile } from 'node:fs/promises';
 import { h } from 'preact';
 import { renderToString } from 'preact-render-to-string';
@@ -30,6 +31,7 @@ const ICONS = {
   interaction: 'icon-interaction-click-small',
   link: 'icon-link-connected',
   warning: 'icon-warning-small',
+  eyedropper: 'icon-eyedropper-small',
 };
 
 const lines = [];

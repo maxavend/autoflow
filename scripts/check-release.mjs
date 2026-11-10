@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const read = (file) => readFileSync(join(root, file), 'utf8');
 const mtime = (file) => statSync(join(root, file)).mtimeMs;
-const newest = (dir) => Math.max(...readdirSync(join(root, dir)).map((f) => mtime(join(dir, f))));
+// Newest file in a folder, nested folders included (the UI keeps its components in ui/components/…).
+const newest = (dir) => Math.max(...readdirSync(join(root, dir), { recursive: true }).map((f) => mtime(join(dir, String(f)))));
 
 const problems = [];
 const ok = [];
@@ -35,13 +36,17 @@ if (existsSync(join(root, manifest.ui))) {
 
   const html = read(manifest.ui);
   const allowed = ['http://www.w3.org/', 'https://fig.local'];
+  // Text that is never fetched: license notices (FigUI, Tailwind's CSS banner) and the
+  // documentation links inside React's and Base UI's production error messages.
+  const notFetched = /^https:\/\/(github\.com\/|figui\.dev\b|tailwindcss\.com\b|react\.dev\/errors\/|base-ui\.com\/production-error)/;
   const urls = [...new Set(html.match(/https?:\/\/[a-zA-Z0-9.-]+[^\s"'`)<>]*/g) ?? [])]
     .filter((url) => !allowed.some((a) => url.startsWith(a)))
-    .filter((url) => !/^https:\/\/(github\.com|polyformproject\.org)\//.test(url)); // license notices
+    .filter((url) => !notFetched.test(url));
   const allowsNetwork = manifest.networkAccess.allowedDomains.some((d) => d !== 'none');
   check(allowsNetwork || urls.length === 0, `la UI no carga recursos externos${urls.length ? `: ${urls.slice(0, 3).join(', ')}` : ''}`);
-  // FigUI3 (Rogie King; editor module under PolyForm Shield) and the UI3 icons (Yuan Qing Lim)
-  check(html.includes('Rogie King') && html.includes('Yuan Qing Lim'), 'la UI incluye los avisos de licencias de terceros');
+  // FigUI (figui.dev, MIT) and the UI3 icons (Yuan Qing Lim)
+  check(html.includes('figui.dev') && html.includes('Yuan Qing Lim') && html.includes('MIT License'), 'la UI incluye los avisos de licencias de terceros');
+  check(existsSync(join(root, 'THIRD_PARTY_NOTICES.md')), 'THIRD_PARTY_NOTICES.md existe');
 
   ok.push(`tamaño de ${manifest.ui}: ${Math.round(Buffer.byteLength(html) / 1024)} KB`);
 }

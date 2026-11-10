@@ -1,0 +1,55 @@
+/* Autoflow panel: FigUI (tokens, UI3 typography, light/dark) + Tailwind, which reads the classes in ui/. */
+@import "./figui.css";
+@import "./scrollbar.css";
+@source "../";
+
+@layer base {
+  *, ::before, ::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--color-white-1000);
+    color: var(--color-black-1000);
+    font-family: var(--font-family-default);
+    font-size: var(--text-body-medium-font-size);
+    line-height: var(--text-body-medium-line-height);
+    letter-spacing: var(--text-body-medium-letter-spacing);
+    font-weight: var(--font-weight-default);
+    -webkit-font-smoothing: antialiased;
+  }
+  .dark body { background: var(--color-grey-800); color: var(--color-white-1000); }
+  h3, p { margin: 0; }
+}
+
+/* Official 24px UI3 icons (ui/icons.js, ui/glyphs.js). Unlayered on purpose:
+   it beats FigUI's 16px rule for SVGs inside buttons, the glyphs keep their grid. */
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+.icon > svg { display: block; width: 24px; height: 24px; }
+/* The official stroke-cap glyphs face the start of the line; arrows and the end cap are mirrored. */
+.icon.mirror > svg { transform: scaleX(-1); }
+/* Chevrons cropped to the width they use. */
+.tool-chevron { width: 12px; overflow: hidden; }
+.tool-chevron > svg { margin: 0 -6px; }
+.disclosure-chevron { width: 16px; overflow: hidden; transform: rotate(-90deg); }
+.disclosure-chevron > svg { margin: 0 -4px; }
+[data-panel-open] .disclosure-chevron { transform: none; }
+
+/* Fresh copy: the ⌘V prompt lights up in the brand color and settles back,
+   and the key does one press. Replayed on every copy. */
+.paste.is-fresh { animation: paste-flash 900ms cubic-bezier(0.16, 1, 0.3, 1); }
+.paste.is-fresh .kbd-large { animation: key-press 420ms cubic-bezier(0.16, 1, 0.3, 1) 120ms; }
+@keyframes paste-flash {
+  0% { background: var(--color-blue-500); color: var(--color-white-1000); box-shadow: 0 0 0 2px var(--color-blue-600); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes key-press {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .paste.is-fresh, .paste.is-fresh .kbd-large { animation: none; }
+}
